@@ -24,7 +24,7 @@ def get_value_in_dict(map: dict, key: Any) -> Any:
     else:
         return None
 
-def check_url(arg: str, allow_rules: list[str], deny_rules: list[str]) -> bool:
+def check_args(arg: str, allow_rules: list[str] = ["^(.*)$"], deny_rules: list[str] = []) -> bool:
         """Check if the requested url is allowed"""
         filter_arg = ""
         for rule in allow_rules:

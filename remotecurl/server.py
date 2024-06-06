@@ -7,21 +7,20 @@ from urllib.parse import urlparse
 from urllib.parse import parse_qs
 from pycurl import Curl
 from certifi import where as cert_where
-from util import get_value_in_dict, check_url
+from util import get_value_in_dict, check_args
 
 
-__ALLOW_URLS__ = ["^https?://", "about:blank"]
+__SERVER_PORT__ = 5678
+__ALLOW_URLS__ = ["^https?://", "about:blank", "^data:image/"]
 __DENY_URLS__ = ["^https?://localhost", "^https?://127.0.0.1"]
-__ALLOW_KEYS__ = ["(.*)$"]
-__DENY_KEYS__ = ["host", "accept"]
-
+__DENY_HEADERS__ = ["host"]
 
 class ApiHandler(BaseHTTPRequestHandler):
     """Api server handler"""
 
     _response_headers = {}
 
-    def get_requested_url(self) -> Optional[str]:
+    def get_requested_url(self) -> str:
         """Return the url requested to load"""
         url = f"v://me/{self.path}"
         if self.path.startswith("/api"):
@@ -31,18 +30,28 @@ class ApiHandler(BaseHTTPRequestHandler):
 
         return ""
 
-    def get_requested_headers(self) -> list[str]:
+    def get_requested_headers(self, url: str) -> list[str]:
         """DOCSTRING"""
-        
+        headers = []
+        headers.append(f"Host: {urlparse(url).hostname}")
 
-    def _header_func(self, header_line: bytes) -> None:
+        for header in self.headers.as_string().splitlines() :
+            key, value = header.split(":", 1)
+            key = key.strip().lower()
+            value = value.strip()
+            if not check_args(key, deny_rules=__DENY_HEADERS__):
+                headers.append(header)
+
+        return headers            
+
+    def _header_func(self, header: bytes) -> None:
         """DOCSTRING"""
-        header_line = header_line.decode('iso-8859-1')
+        header = header.decode('iso-8859-1')
         
-        if ":" not in header_line:
+        if ":" not in header:
             return
 
-        key, value = header_line.split(':', 1)
+        key, value = header.split(':', 1)
         key = key.strip().lower()
         value = value.strip()
         self._response_headers[key] = value
@@ -83,20 +92,17 @@ class ApiHandler(BaseHTTPRequestHandler):
         """DOCSTRING"""
         url = self.get_requested_url()
 
-        if not check_url(url, __ALLOW_URLS__, __DENY_URLS__):
+        if not check_args(url, allow_rules=__ALLOW_URLS__, deny_rules=__DENY_URLS__):
             return
 
         res = self._request_with_curl(url)
         self.set_response_header(res["headers"]["http-code"], res["headers"]["content-type"])
         self.wfile.write(res["content"])
-        # self.set_response_header(200, "text/plain")
-        # self.wfile.write(bytes(self.headers.as_string(), "utf8"))
-
 
     def do_POST(self):
         """DOCSTRING"""
         pass
 
 if __name__ == "__main__":
-    with HTTPServer(('', 5678), ApiHandler) as server:
+    with HTTPServer(('', __SERVER_PORT__), ApiHandler) as server:
         server.serve_forever()
