@@ -1,6 +1,6 @@
 # RemoteCurl
 
-RemoteCurl is a proxy server that allows
+RemoteCurl
 
 ## Dependencies
 - Curl
