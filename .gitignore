@@ -1,0 +1,7 @@
+/.DS_Store
+/.venv
+/build
+/dist
+/pyremotechrome.egg-info
+/.tmp
+__pycache__
