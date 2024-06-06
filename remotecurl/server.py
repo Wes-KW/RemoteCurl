@@ -66,7 +66,7 @@ class ApiHandler(BaseHTTPRequestHandler):
             c = Curl()
             c.setopt(c.URL, url)
             c.setopt(c.WRITEFUNCTION, buffer.write)
-            c.setopt(c.HTTPHEADER, self.get_requested_headers())
+            c.setopt(c.HTTPHEADER, self.get_requested_headers(url))
             c.setopt(c.HEADERFUNCTION, self._header_func)
             c.setopt(c.FOLLOWLOCATION, True)
             c.setopt(c.CAINFO, cert_where())
