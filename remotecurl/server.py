@@ -36,6 +36,9 @@ class ApiHandler(BaseHTTPRequestHandler):
         headers.append(f"Host: {urlparse(url).hostname}")
 
         for header in self.headers.as_string().splitlines() :
+            if ":" not in header:
+                continue
+
             key, value = header.split(":", 1)
             key = key.strip().lower()
             value = value.strip()
