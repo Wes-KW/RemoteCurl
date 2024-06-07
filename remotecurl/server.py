@@ -1,14 +1,14 @@
 from __future__ import annotations
 from typing import Any
 from io import BytesIO
-from http.server import BaseHTTPRequestHandler
-from http.server import HTTPServer
-from urllib.parse import urlparse
 from bs4 import BeautifulSoup
-from certifi import where as cert_where
+from http.server import HTTPServer
+from http.server import BaseHTTPRequestHandler
+from pycurl import Curl, URL, HTTPHEADER, WRITEFUNCTION, USERAGENT, HEADERFUNCTION, FOLLOWLOCATION, CAINFO
 from re import search
+from urllib.parse import urlparse
+from certifi import where as cert_where
 from util import check_args, get_absolute_path
-import pycurl
 
 __SERVER_SCHEME__ = "http"
 __SERVER_NAME__ = "localhost"
@@ -151,14 +151,14 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
             hlist, hdict = self.get_requested_headers(url)
 
             buffer = BytesIO()
-            c = pycurl.Curl()
-            c.setopt(pycurl.URL, url)
-            c.setopt(pycurl.HTTPHEADER, hlist)
-            c.setopt(pycurl.WRITEFUNCTION, buffer.write)
-            c.setopt(pycurl.USERAGENT, hdict["user-agent"])
-            c.setopt(pycurl.HEADERFUNCTION, self._header_func)
-            c.setopt(pycurl.FOLLOWLOCATION, True)
-            c.setopt(pycurl.CAINFO, cert_where())
+            c = Curl()
+            c.setopt(URL, url)
+            c.setopt(HTTPHEADER, hlist)
+            c.setopt(WRITEFUNCTION, buffer.write)
+            c.setopt(USERAGENT, hdict["user-agent"])
+            c.setopt(HEADERFUNCTION, self._header_func)
+            c.setopt(FOLLOWLOCATION, True)
+            c.setopt(CAINFO, cert_where())
             c.perform()
 
             res = {}
