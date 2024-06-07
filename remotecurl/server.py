@@ -11,12 +11,14 @@ from urllib.parse import urlparse
 from certifi import where as cert_where
 from util import check_args, get_absolute_path
 
+
 __SERVER_SCHEME__ = "http"
 __SERVER_NAME__ = "localhost"
 __SERVER_PORT__ = 5678
 __ALLOW_URLS__ = ["^https?://", "^about:blank$", "^data:image/"]
 __DENY_URLS__ = ["^https?://localhost", "^https?://127.0.0.1"]
 __DENY_HEADERS__ = ["^(host|user-agent|accept-encoding)$"] 
+
 
 class HttpProxyHandler(BaseHTTPRequestHandler):
     """Http proxy server handler"""
@@ -93,7 +95,7 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
                     if property.name == 'background-image':
                         property.value = self._modify_bg_image(property.value, url)
 
-        return bytes(sheet.cssText, encoding)                 
+        return bytes(sheet.cssText.decode('utf-8'), encoding)
 
     def _modify_html(self, html: bytes, url: str, encoding: str) -> bytes:
         """Return the modified html document, where links are redirected"""
@@ -218,8 +220,8 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
 
             c.close()
             return res
-        except Exception as e:
-            raise e
+        except Exception:
+            return {"headers": {"http-code": 500, "content-type": "text/html"}, "content": b""}
 
     def send_head(self) -> bytes:
         """Common code for HEAD and GET request"""
