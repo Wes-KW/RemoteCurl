@@ -2,6 +2,7 @@ from __future__ import annotations
 from typing import Any
 from io import BytesIO
 from bs4 import BeautifulSoup
+from cssutils import parseStyle, parseString
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 from pycurl import Curl, URL, HTTPHEADER, WRITEFUNCTION, USERAGENT, HEADERFUNCTION, FOLLOWLOCATION, CAINFO
@@ -70,14 +71,35 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
         else:
             return relative_url
 
-    def _modify_css(self, css: bytes, url: str, encoding: str) -> bytes:
+    def _modify_bg_image(self, bgimage_str: str, url: str) -> str:
         """DOCSTRING"""
-        ...
+        matched = search("url\(([^)]+)\)", bgimage_str)
+        if matched:
+            bgimage_src = matched.group(1)
+            front, back = bgimage_str.split(bgimage_src, 1)
+            bgimage_src = self._modify_link(url, bgimage_src)
+            return front + bgimage_src + back
+        else:
+            return bgimage_str
+
+    def _modify_css(self, css: bytes, url: str, encoding: str) -> bytes:
+        """Return the modified css document, where links are redirected"""
+        cssString = css.decode(encoding)
+        sheet = parseString(cssString)
+
+        for rule in sheet:
+            if rule.type == rule.STYLE_RULE:
+                for property in rule.style:
+                    if property.name == 'background-image':
+                        property.value = self._modify_bg_image(property.value, url)
+
+        return bytes(sheet.cssText, encoding)                 
 
     def _modify_html(self, html: bytes, url: str, encoding: str) -> bytes:
-        """DOCSTRING"""
+        """Return the modified html document, where links are redirected"""
         document = BeautifulSoup(html.decode(encoding), 'html.parser')
 
+        # Add script to redirect
         redirect_script = document.new_tag("script")
         redirect_script.string = """
             /* Redirect script to REMOTECURL */
@@ -117,6 +139,7 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
         if document.__getattr__("head") is not None:
             document.head.insert(0, redirect_script)
 
+        # Rewrite links and srcs
         for with_obj in document.select("*[href]"):
             with_obj["href"] = self._modify_link(url, with_obj.get("href"))
 
@@ -141,7 +164,21 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
 
             with_obj["srcset"] = ", ".join(modified_srcsets)
 
+        for with_obj in document.select('*[style^="background-image"]'):
+            style = parseStyle(with_obj.get("style"))
+            bg_image_src = style["background-image"]
+            style["background-image"] = self._modify_bg_image(bg_image_src, url)
+            with_obj["style"] = style.cssText
+
         return document.prettify(encoding)
+
+    def _request_encoding(self, content_type: str) -> str:
+        """Return response encoding. If no encoding is received, assume utf-8"""
+        matched = search("charset=(\S+)", content_type)
+        if matched:
+            return matched.group(1)
+
+        return "utf-8"
 
     def _request_with_curl(self, url: str) -> dict[str, Any]:
         """DOCSTRING"""
@@ -173,13 +210,11 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
             # Modify HTML
             if 'content-type' in res["headers"]:
                 content_type = res["headers"]['content-type'].lower()
+                encoding = self._request_encoding(content_type)
                 if "text/html" in content_type:
-                    matched = search("charset=(\S+)", content_type)
-                    encoding = "utf-8"
-                    if matched:
-                        encoding = matched.group(1)
-
                     res["content"] = self._modify_html(buffer.getvalue(), url, encoding)
+                elif "text/css" in content_type:
+                    res["content"] = self._modify_css(buffer.getvalue(), url, encoding)
 
             c.close()
             return res
