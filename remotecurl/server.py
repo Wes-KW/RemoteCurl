@@ -2,13 +2,15 @@ from __future__ import annotations
 from typing import Any
 from io import BytesIO
 from bs4 import BeautifulSoup
-from cssutils import parseStyle, parseString
+from cssutils import parseStyle, parseString, log
 from http.server import HTTPServer
 from http.server import BaseHTTPRequestHandler
 from pycurl import Curl, URL, HTTPHEADER, WRITEFUNCTION, USERAGENT, HEADERFUNCTION, FOLLOWLOCATION, CAINFO
 from re import search
 from urllib.parse import urlparse
 from certifi import where as cert_where
+from logging import CRITICAL
+from traceback import format_exc
 from util import check_args, get_absolute_path
 
 
@@ -18,6 +20,8 @@ __SERVER_PORT__ = 5678
 __ALLOW_URLS__ = ["^https?://", "^about:blank$", "^data:image/"]
 __DENY_URLS__ = ["^https?://localhost", "^https?://127.0.0.1"]
 __DENY_HEADERS__ = ["^(host|user-agent|accept-encoding)$"] 
+
+log.setLevel(CRITICAL)
 
 
 class HttpProxyHandler(BaseHTTPRequestHandler):
@@ -68,7 +72,7 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
 
     def _modify_link(self, absolute_url: str, relative_url: str) -> str:
         """DOCSTRING"""
-        if search("^data:image/", relative_url) is None:
+        if search("(^data:image/.*)|(^blob:.*)", relative_url) is None:
             return self._base_url + get_absolute_path(absolute_url, relative_url)
         else:
             return relative_url
@@ -108,15 +112,25 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
 
             (function(){
                 function get_absolute_path(relative_path) {
-                    var origin = "%(url)s";
-                    return new URL(relative_path, origin).href;
+                    /* skip blob and base64 data */
+                    var pattern = /(^data:image\/.*)|(^blob:.*)/;
+                    if (pattern.test(relative_path)) {
+                        return relative_path;
+                    } else {
+                        var origin = "%(url)s";
+                        return "%(base_url)s" + new URL(relative_path, origin).href;   
+                    }
                 }
-                
+
+                function log(name, original_url, new_url) {
+                    console.log(name + ": Redirect " + original_url + " to " + new_url);
+                }
+
+                // Reset request
                 window.XMLHttpRequest.prototype._open = window.XMLHttpRequest.prototype.open;
                 window.XMLHttpRequest.prototype.open = function(method, url, async=true) {
-                    var base_url = "%(base_url)s";
-                    var abs_url = base_url + get_absolute_path(url);
-                    console.log("XMLHttpRequest: Redirect " + url + " to " + abs_url);
+                    var abs_url = get_absolute_path(url);
+                    log("XMLHttpRequest", url, abs_url);
                     this._open(method, abs_url, async);
                 };
 
@@ -126,16 +140,15 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
                         url = url.url;
                     }
 
-                    var base_url = "%(base_url)s";
-                    var abs_url = base_url + get_absolute_path(url);
-                    console.log("Fetch: Redirect " + url + " to " + abs_url);
-
+                    var abs_url = get_absolute_path(url);
+                    log("Fetch", url, abs_url);
                     return window._fetch(abs_url, options)
                     .then(response => {
                         return response;
-                    })
+                    });
                 }
 
+                // Reset Element link
             })();
         """ % {"url": url, "base_url": self._base_url}
         if document.__getattr__("head") is not None:
@@ -182,7 +195,7 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
 
         return "utf-8"
 
-    def _request_with_curl(self, url: str) -> dict[str, Any]:
+    def _request_with_curl(self, url: str, debug: bool = False) -> dict[str, Any]:
         """DOCSTRING"""
 
         try:
@@ -221,13 +234,17 @@ class HttpProxyHandler(BaseHTTPRequestHandler):
             c.close()
             return res
         except Exception:
-            return {"headers": {"http-code": 500, "content-type": "text/html"}, "content": b""}
+            output = b""
+            if debug:
+                output = bytes(format_exc(), "utf-8")
+
+            return {"headers": {"http-code": 500, "content-type": "text/plain"}, "content": output}
 
     def send_head(self) -> bytes:
         """Common code for HEAD and GET request"""
         url = self.get_requested_url()
         if not check_args(url, allow_rules=__ALLOW_URLS__, deny_rules=__DENY_URLS__):
-            return
+            return b""
 
         res = self._request_with_curl(url)
         if "content-type" not in res["headers"]:
