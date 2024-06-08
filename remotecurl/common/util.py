@@ -1,6 +1,7 @@
 from typing import Any
 from base64 import b64decode, b64encode
-from urllib.parse import urlparse
+from os.path import realpath, dirname
+from urllib.parse import urljoin
 from re import search
 
 
@@ -45,28 +46,26 @@ def check_args(arg: str, allow_rules: list[str] = ["^(.*)$"], deny_rules: list[s
             return True
 
 
-def get_absolute_path(origin: str, relative_path: str) -> str:
+def get_absolute_url(base_url: str, relative_url: str) -> str:
+    """Get the absolute url of a web resource"""
+    return urljoin(base_url, relative_url)
+
+
+def get_script(filename: str) -> str:
     """DOCSTRING"""
-    org_parsed = urlparse(origin)
-    rel_parsed = urlparse(relative_path)
-    if rel_parsed.scheme == "http" or rel_parsed.scheme == "https":
-        return relative_path
-    elif relative_path.startswith("//"):
-        return f"{org_parsed.scheme}:{relative_path}"
-    elif relative_path.startswith("/"):
-        origin_host = org_parsed.hostname
-        if org_parsed.port is not None:
-            origin_host += f":{org_parsed.port}"
-        return f"{org_parsed.scheme}://{origin_host}{relative_path}"
-    else:
-        origin_host = org_parsed.hostname
-        if org_parsed.port is not None:
-            origin_host += f":{org_parsed.port}"
+    root_dir = dirname(dirname(realpath(__file__)))
+    script_content = ""
+    with open(f"{root_dir}/.script/{filename}", "r") as f:
+        script_content = f.read()
 
-        origin_path = org_parsed.path
-        if not origin_path.endswith("/"):
-            origin_path_obj = origin_path.split("/")
-            origin_path_obj.pop()
-            origin_path = "/" + "/".join(origin_path_obj) + "/"
+    return script_content    
 
-        return f"{org_parsed.scheme}://{origin_host}{origin_path}{relative_path}"
+
+def remove_quote(raw: str) -> str:
+    """DOCSTRING"""
+    if raw.startswith("\"") or raw.startswith("'"):
+        raw = raw[1:]
+    if raw.endswith("\"") or raw.endswith("'"):
+        raw = raw[:-1]
+
+    return raw
