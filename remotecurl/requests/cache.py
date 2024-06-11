@@ -1,1 +1,0 @@
-"""This module contains a cache class for caching files"""

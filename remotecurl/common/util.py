@@ -1,18 +1,28 @@
-from typing import Any
+from typing import Any, Optional
 from base64 import b64decode, b64encode
 from os.path import realpath, dirname
-from urllib.parse import urljoin
+from urllib.parse import urljoin, quote_plus, unquote_plus
 from re import search
 
 
 def btoa(decoded: str) -> str:
-    """Encode ASCII string"""
+    """Encode string"""
     return b64encode(decoded.encode("utf-8")).decode('utf-8')
 
 
 def atob(encoded: str) -> str:
     """Decode base64 string"""
     return b64decode(encoded).decode("utf-8")
+
+
+def encodeURL(decoded: str) -> str:
+    """Encode string"""
+    return quote_plus(unquote_plus(decoded))
+
+
+def decodeURL(encoded: str) -> str:
+    """Decode URL string"""
+    return unquote_plus(encoded)
 
 
 def get_value_in_dict(map: dict, key: Any) -> Any:
@@ -46,7 +56,7 @@ def check_args(arg: str, allow_rules: list[str] = ["^(.*)$"], deny_rules: list[s
             return True
 
 
-def get_absolute_url(base_url: str, relative_url: str) -> str:
+def get_absolute_url(base_url: str, relative_url: Optional[str] = None) -> str:
     """Get the absolute url of a web resource"""
     return urljoin(base_url, relative_url)
 

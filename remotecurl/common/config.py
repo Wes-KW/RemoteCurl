@@ -29,7 +29,7 @@ class _Dict(object):
 class Conf(_Dict):
     
     def __init__(self) -> None:
-        conf_path = expanduser(f"~/.config/remotecurl.json")
+        conf_path = expanduser(f"~/.config/remotecremourl/remotecurl.json")
 
         if not exists(conf_path):
             raise FileNotFoundError()             
