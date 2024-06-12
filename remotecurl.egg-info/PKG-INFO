@@ -1,0 +1,32 @@
+Metadata-Version: 2.1
+Name: remotecurl
+Version: 1.0.0
+Summary: RemoteCurl
+Author-email: Wes-KW <dotdotdashdash2024@hotmail.com>
+Project-URL: Homepage, https://github.com/Wes-KW/RemoteCurl
+Project-URL: Issues, https://github.com/Wes-KW/RemoteCurl/issues
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.5
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Operating System :: POSIX :: Linux
+Requires-Python: <4,>=3.5
+Description-Content-Type: text/markdown
+Requires-Dist: mitmproxy>=10.1.0
+Requires-Dist: pycurl>=7.45.2
+Requires-Dist: certifi>=2024.6.2
+
+# RemoteCurl
+
+RemoteCurl
+
+## Dependencies
+- Curl
+- OpenSSL
+- Python 3.5+ and dependencies listed in [requirements.txt](https://github.com/Wes-KW/RemoteCurl/requirements.txt)
