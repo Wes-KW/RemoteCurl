@@ -3,6 +3,6 @@
 /.venv
 /build
 /dist
-/pyremotechrome.egg-info
+/remotecurl.egg-info
 /.tmp
 __pycache__

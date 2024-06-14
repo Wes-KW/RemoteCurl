@@ -1,0 +1,25 @@
+{
+	"server": {
+		"scheme": "http",
+		"name": "localhost",
+		"port": 5777,
+		"path": "/m/",
+		"rules": {
+			"url":{
+				"allow": ["^https?://.+"],
+				"deny": [
+					"^https?://me.v:5777/.*",
+					"^https?://localhost/.*",
+					"^https?://127.0.0.1/.*",
+					"^https?://me.v:5777$",
+					"^https?://localhost$",
+					"^https?://127.0.0.1$"
+				]
+			}
+		},
+		"debug": true
+	},
+	"client": {
+		"redirect": "http://me.v:5777/m/"
+	}
+}
