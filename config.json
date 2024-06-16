@@ -1,7 +1,7 @@
 {
 	"server": {
 		"scheme": "http",
-		"name": "localhost",
+		"name": "me.v",
 		"port": 5777,
 		"path": "/m/",
 		"rules": {
@@ -18,8 +18,5 @@
 			}
 		},
 		"debug": true
-	},
-	"client": {
-		"redirect": "http://me.v:5777/m/"
 	}
 }

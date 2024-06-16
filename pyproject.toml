@@ -19,7 +19,6 @@ authors = [
   { name="Wes-KW", email="dotdotdashdash2024@hotmail.com" },
 ]
 dependencies = [
-  "mitmproxy>=10.1.0",
   "pycurl>=7.45.3"
 ]
 description = "RemoteCurl"

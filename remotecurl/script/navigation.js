@@ -1,0 +1,110 @@
+// navigation.js
+
+const element_set = [
+	{"class": HTMLImageElement, "tag": "img", "attr": "src"},
+    {"class": HTMLImageElement, "tag": "img", "attr": "srcset"},
+    {"class": HTMLScriptElement, "tag": "script", "attr": "src"},
+	{"class": HTMLEmbedElement, "tag": "embed", "attr": "src"},
+	{"class": HTMLVideoElement, "tag": "video", "attr": "src"},
+	{"class": HTMLAudioElement, "tag": "audio", "attr": "src"},
+	{"class": HTMLSourceElement, "tag": "source", "attr": "src"},
+	{"class": HTMLTrackElement, "tag": "track", "attr": "src"},
+	{"class": HTMLIFrameElement, "tag": "iframe", "attr": "src"},
+	{"class": HTMLLinkElement, "tag": "link", "attr": "href"},
+	{"class": HTMLAnchorElement, "tag": "a", "attr": "href"},
+	{"class": HTMLAreaElement, "tag": "area" ,"attr": "href"},
+	{"class": HTMLFormElement, "tag": "form" ,"attr": "action"}
+];
+
+for (var i = 0; i < element_set.length; i++) {
+	const element = element_set[i];
+	Object.defineProperty(
+		element["class"].prototype, element["attr"], {
+			enumerable: true,
+			configurable: true,
+			get: function() {
+				return this.getAttribute(element["attr"]);
+			},
+			set: function(value) {
+                if (element["attr"] == "srcset") {
+                    var new_value = "";
+                    const srcsets = value.split(",");
+                    for (var j = 0; j < srcsets.length; j++) {
+                        const srcset = srcsets[j].trim();
+                        if (srcset.indexOf(" ") > -1) {
+                            const srcset_split = srcset.split(" ");
+                            new_value += get_requested_url(srcset_split[0].trim());
+                            new_value += " " + srcset_split[1] + ",";
+                        } else {
+                            new_value += srcset + ",";
+                        }
+                    }
+                    if (new_value !== value) {
+                        if (new_value.length > 0) {
+                            this.setAttribute(element["attr"], new_value.substring(0, new_value.length - 1));
+                        }
+                    }
+                } else {
+                    var new_value = get_requested_url(value);
+				    if (new_value !== value) {
+					    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
+					    this.setAttribute(element["attr"], new_value);
+				    }
+                }
+			}
+		}
+	);
+}
+
+function observer_callback (mutations) {
+    // reset src and href of any new element
+    for (var i = 0; i < element_set.length; i++) {
+        const element = element_set[i];
+        const doms = document.querySelectorAll(element["tag"] + "[" + element["attr"] + "]");
+        for (var j = 0; j < doms.length; j++) {
+            const dom = doms[j];
+            dom[element["attr"]] = dom[element["attr"]];
+        }
+    }
+
+    var new_url = document.location.href;
+    var tmp_url = get_requested_url(new_url);
+    if ($url !== new_url) {
+        if (tmp_url === new_url) {
+            tmp_url = $base_url + $url;
+        }
+        if (tmp_url != new_url){
+            window.history.replaceState(window.history.state, document.title, tmp_url);
+            redirect_log("history", new_url, tmp_url);
+        }
+        $url = tmp_url.substring($base_url.length);
+    }
+}
+
+const head = document.querySelector("head");
+const head_observer = new MutationObserver(observer_callback);
+head_observer.observe(head, {childList: true, subtree: true});
+
+const body_detector_interval = 1000;
+const body_detector_time_out = 60000;
+var time_count = 0;
+var body_detector = window.setInterval(function(){
+    if (time_count >= body_detector) {
+        window.clearInterval(body_detector);
+        console.warn(
+            "WARNING: Time out for detecting body as an observee.",
+            "\n`window.history.replaceState` and `window.history.pushState` might not work as expected"
+        );
+        return;
+    }
+
+    const body = document.querySelector("body");
+    const body_observer = new MutationObserver(observer_callback);
+    if (body !== null) {
+        body_observer.observe(body, {childList: true, subtree: true});
+        window.clearInterval(body_detector);
+        return;
+    }
+
+    time_count += body_detector_interval;
+}, body_detector_interval);

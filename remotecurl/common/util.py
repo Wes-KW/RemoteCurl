@@ -50,10 +50,7 @@ def check_args(arg: str, allow_rules: list[str] = ["^(.*)$"], deny_rules: list[s
                 filter_arg = ""
                 break
 
-        if filter_arg == "":
-            return False
-        else:
-            return True
+        return filter_arg != ""
 
 
 def get_absolute_url(base_url: str, relative_url: Optional[str] = None) -> str:
@@ -65,7 +62,7 @@ def get_script(filename: str) -> str:
     """DOCSTRING"""
     root_dir = dirname(dirname(realpath(__file__)))
     script_content = ""
-    with open(f"{root_dir}/.script/{filename}", "r") as f:
+    with open(f"{root_dir}/script/{filename}.js", "r") as f:
         script_content = f.read()
 
     return script_content    

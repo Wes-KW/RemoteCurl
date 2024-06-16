@@ -1,3 +1,6 @@
+# Run this to start the server:
+# conda activate utcs && mitmproxy -s ~/Developer/Git/remotecurl/remotecurl/client/client.py --set stream_large_bodies=1
+
 from mitmproxy import http
 from remotecurl.common.config import Conf
 
