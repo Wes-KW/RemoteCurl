@@ -7,12 +7,12 @@ window.XMLHttpRequest.prototype.open = function(method, url, async=true) {
     return this._open(method, req_url, async);
 }
 
-window._Request = window.Request;
 window.Request = new Proxy(
-	window._Request, {
+	window.Request, {
 		construct(target, args) {
 			var req_url = get_requested_url(args[0])
 			redirect_log("Request", args[0], req_url);
+			args[0] = req_url;
 			return new target(...args);
 		}
 	}

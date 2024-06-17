@@ -26,11 +26,12 @@ class Modifier:
 
     def _modify_link(self, relative_url: str) -> None:
         """Modify given link"""
-        if check_args(relative_url, self.allow_url_rules, self.deny_url_rules):
-            return self.base_url + get_absolute_url(self.url, relative_url)
+        abs_url = get_absolute_url(self.url, relative_url)
+        if check_args(abs_url, self.allow_url_rules, self.deny_url_rules):
+            return self.base_url + abs_url
         else:
             return relative_url
 
-    def get_modified_content(self) -> Any:
+    def get_modified_content(self) -> None:
         """Get the modified content (Abstract)"""
         pass

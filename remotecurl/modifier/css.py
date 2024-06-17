@@ -31,7 +31,7 @@ class CSSModifier(Modifier):
         """Modify css content"""
         self.css = sub(r"url\(([^)]+)\)", self._get_new_url_string, self.css, flags=MULTILINE)
 
-    def get_modified_content(self) -> tuple[bytes, str]:
+    def get_modified_content(self) -> bytes:
         """Return a tuple of css content bytes and encoding"""
         self._modify_css()
-        return bytes(self.css, self.encoding), self.encoding
+        return bytes(self.css, self.encoding)

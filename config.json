@@ -2,16 +2,16 @@
 	"server": {
 		"scheme": "http",
 		"name": "me.v",
-		"port": 5777,
+		"port": 8080,
 		"path": "/m/",
 		"rules": {
 			"url":{
 				"allow": ["^https?://.+"],
 				"deny": [
-					"^https?://me.v:5777/.*",
+					"^https?://me.v:8080/.*",
 					"^https?://localhost/.*",
 					"^https?://127.0.0.1/.*",
-					"^https?://me.v:5777$",
+					"^https?://me.v:8080$",
 					"^https?://localhost$",
 					"^https?://127.0.0.1$"
 				]

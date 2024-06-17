@@ -5,6 +5,7 @@ from typing import Optional
 from bs4 import BeautifulSoup as dom
 from jsmin import jsmin
 from re import search
+from urllib.parse import urlparse
 from remotecurl.modifier.abstract import Modifier
 from remotecurl.common.util import get_script, remove_quote
 
@@ -16,7 +17,7 @@ class HTMLModifier(Modifier):
     """
 
     server_url: str
-    html: bytes
+    document: dom
     
     def __init__(
         self, html: bytes, url: str, base_url: str, server_url: str, encoding: Optional[str] = None,
@@ -24,7 +25,7 @@ class HTMLModifier(Modifier):
     ) -> None:
         """Initialize a HTML modifier"""
         self.server_url = server_url
-        self.html = html
+        self.document = dom(html.decode(encoding), "html.parser")
         super().__init__(url, base_url, encoding, allow_url_rules, deny_url_rules)
 
     def _py_regex_list_to_js(self, regex_list: list[str]) -> str:
@@ -34,42 +35,47 @@ class HTMLModifier(Modifier):
 
     def _add_script(self) -> None:
         """Add script to the html document"""
-        document = dom(self.html, "html.parser")
-        if hasattr(document, "head"):
-            script = document.new_tag("script")
-            script.attrs["type"] = "text/javascript"
-            script.attrs["id"] = "remotecurl"
-            script_names = ["common", "request", "navigation"]
-            script_embedded = ""
-            for script_name in script_names:
-                script_embedded += get_script(script_name)
+        script =self.document.new_tag("script")
+        script.attrs["type"] = "text/javascript"
+        script.attrs["id"] = "remotecurl"
+        script_names = ["common", "request", "navigation"]
+        script_embedded = ""
+        for script_name in script_names:
+            script_embedded += get_script(script_name)
 
-            js_allow_url_rules = self._py_regex_list_to_js(self.allow_url_rules)
-            js_deny_url_rules = self._py_regex_list_to_js(self.deny_url_rules)
+        js_allow_url_rules = self._py_regex_list_to_js(self.allow_url_rules)
+        js_deny_url_rules = self._py_regex_list_to_js(self.deny_url_rules)
 
-            script_content = f"""
-                (function(){{
-                    const $server_url = "{self.server_url}";
-                    const $base_url = "{self.base_url}";
-                    const $allow_url = {js_allow_url_rules};
-                    const $deny_url = {js_deny_url_rules};
-                    var $url = "{self.url}";
+        script_content = f"""
+            (function(){{
+                const $server_url = "{self.server_url}";
+                const $base_url = "{self.base_url}";
+                const $allow_url = {js_allow_url_rules};
+                const $deny_url = {js_deny_url_rules};
+                var $url = "{self.url}";
 
-                    {script_embedded}
+                {script_embedded}
 
-                    // document.head.removeChild(document.querySelector("script['remotecurl-external-script']"));
-                }})();
-            """
+                self.document.head.removeChild(document.querySelector("script#remotecurl"));
+            }})();
+        """
 
-            # script_content = jsmin(script_content, quote_chars="'\"`")
-            script.string = script_content
-            document.head.insert(0, script)
+        script_content = jsmin(script_content, quote_chars="'\"`")
+        script.string = script_content
+        self.document.head.insert(0, script)
 
-            self.html = document.prettify(self.encoding)
+    def _add_icon(self) -> None:
+        """DOCSTRING"""
+        icon_doms = self.document.select("link[rel='*icon']")
+        if len(icon_doms) == 0:
+            url_obj = urlparse(self.url)
+            icon_dom = self.document.new_tag("link")
+            icon_dom["rel"] = "icon"
+            icon_dom["href"] = f"{url_obj.scheme}://{url_obj.hostname}/favicon.ico"
+            self.document.head.append(icon_dom)
 
     def _modify_static_html(self) -> None:
         """DOCSTRING"""
-        document = dom(self.html, "html.parser")
         # Modify Links
         with_objs_list = [
             {"selector": "meta[content]", "attribute": "content"},
@@ -81,11 +87,11 @@ class HTMLModifier(Modifier):
         for with_objs in with_objs_list:
             selector = with_objs["selector"]
             attribute = with_objs["attribute"]
-            for with_obj in document.select(selector):
+            for with_obj in self.document.select(selector):
                 with_obj[attribute] = self._modify_link(with_obj.get(attribute))
 
         # Modify srcset
-        for with_obj in document.select("*[srcset]"):
+        for with_obj in self.document.select("*[srcset]"):
             modified_srcsets = []
             srcset_string = with_obj.get("srcset")
             srcsets = srcset_string.split(",")
@@ -101,7 +107,7 @@ class HTMLModifier(Modifier):
             with_obj["srcset"] = ", ".join(modified_srcsets)
 
         # Modify background-image
-        for with_obj in document.select('*[style^="background-image"]'):
+        for with_obj in self.document.select('*[style^="background-image"]'):
             style_str = with_obj.get("style")
             pattern = r"background(-image)?\ *:\ *url\(([^)]+)\)"
             matched = search(pattern, style_str)
@@ -111,10 +117,12 @@ class HTMLModifier(Modifier):
                 url = self._modify_link(url)
                 with_obj["style"] = front + url + back
 
-        self.html = document.prettify(self.encoding)
-
-    def get_modified_content(self) -> tuple[bytes, str]:
+    def get_modified_content(self) -> bytes:
         """Return a tuple of html content bytes and encoding"""
+        if self.document.head is None:
+            self.document.insert(0, self.document.new_tag("head"))
+
         self._add_script()
+        self._add_icon()
         self._modify_static_html()
-        return self.html, self.encoding
+        return self.document.prettify(self.encoding)
