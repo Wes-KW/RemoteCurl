@@ -248,12 +248,12 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     )
                     data = m.get_modified_content()
 
-            if "content-length" in response_headers:
-                response_headers["content-length"] = str(len(data))
-
             # Compress            
             if "content-encoding" in response_headers:
                 data = self.get_compressed_data(data, response_headers["content-encoding"])
+
+            if "content-length" in response_headers:
+                response_headers["content-length"] = str(len(data))
 
             self.send_response_only(http_code)
             for key, value in response_headers.to_dict().items():

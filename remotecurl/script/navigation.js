@@ -42,12 +42,14 @@ for (var i = 0; i < element_set.length; i++) {
                     }
                     if (new_value !== original_value) {
                         this.setAttribute(element["attr"], new_value.substring(0, new_value.length - 2));
+                        return;
                     }
                 } else {
                     var new_value = get_requested_url(value);
 				    if (new_value !== original_value) {
 					    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
 					    this.setAttribute(element["attr"], new_value);
+                        return;
 				    }
                 }
 			}
