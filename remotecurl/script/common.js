@@ -32,7 +32,11 @@ function get_requested_url(relative_url) {
 				try{
 					var new_m_url = relative_url.substring(url.length);
 					var new_m_url_obj = new URL(new_m_url, $url);
-					return $base_url + new_m_url_obj.href;
+					if (check_url(new_m_url_obj.href)) {
+						return $base_url + new_m_url_obj.href;
+					} else {
+						continue;
+					}
 				} catch (e) {
 					continue;
 				}

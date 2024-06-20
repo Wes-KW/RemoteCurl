@@ -10,7 +10,7 @@ from traceback import format_exc
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
 from remotecurl.common.config import Conf
-from remotecurl.common.util import check_args
+from remotecurl.common.util import check_args, get_absolute_url
 import pycurl as curl
 import zlib
 import brotli
@@ -213,7 +213,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             # Modify content or response headers
             if http_code == 302 and "location" in response_headers:
-                response_headers["location"] = __BASE_URL__ + response_headers["location"]
+                response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
 
             if "content-security-policy" in response_headers:
                 response_headers.pop("content-security-policy")
