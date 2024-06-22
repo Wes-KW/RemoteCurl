@@ -19,7 +19,11 @@ authors = [
   { name="Wes-KW", email="dotdotdashdash2024@hotmail.com" },
 ]
 dependencies = [
-  "pycurl>=7.45.3"
+  "beautifulsoup4>=4.12.3",
+  "certifi>=2023.11.17",
+  "jsmin>=3.0.1",
+  "pycurl>=7.45.3",
+  "zstd>=1.5.5.1"
 ]
 description = "RemoteCurl"
 readme = "README.md"
