@@ -10,8 +10,11 @@ from traceback import format_exc
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
 from remotecurl.common.config import Conf
-from remotecurl.common.util import check_args
+from remotecurl.common.util import check_args, get_absolute_url
 import pycurl as curl
+import zlib
+import brotli
+import zstd
 
 
 __CONFIG__ = Conf()
@@ -111,13 +114,44 @@ class RedirectHandler(BaseHTTPRequestHandler):
         for header in self.headers.as_string().splitlines():
             headers.append(header)
 
+        url = self.get_requested_url()
+        url_obj = urlparse(url)
         if "host" in headers:
-            headers["host"] = urlparse(self.get_requested_url()).hostname
+            headers["host"] = url_obj.hostname
 
-        if "accept-encoding" in headers:
-            headers.pop("accept-encoding")
+        if "origin" in headers:
+            headers["origin"] = f"{url_obj.scheme}://{url_obj.hostname}"
+
+        if "referer" in headers:
+            headers["referer"] = url
 
         return headers.to_dict(), headers.to_list()
+
+    def get_uncompressed_data(self, data: bytes, content_encoding: str) -> bytes:
+        """DOCSTRING"""
+        if content_encoding == "gzip":
+            return zlib.decompress(data, 16 + zlib.MAX_WBITS)
+        elif content_encoding == "deflate":
+            return zlib.decompress(data, -zlib.MAX_WBITS)
+        elif content_encoding == "br":
+            return brotli.decompress(data)
+        elif content_encoding == "zstd":
+            return zstd.decompress(data)
+        else:
+            raise Exception(f"Unable to decompress content encoded with: {content_encoding}")
+
+    def get_compressed_data(self, data: bytes, content_encoding: str) -> bytes:
+        """DOCSTRING"""
+        if content_encoding == "gzip":
+            return zlib.compress(data, zlib.DEFLATED, 16 + zlib.MAX_WBITS)
+        elif content_encoding == "deflate":
+            return zlib.compress(data, zlib.DEFLATED, -zlib.MAX_WBITS)
+        elif content_encoding == "br":
+            return brotli.compress(data)
+        elif content_encoding == "zstd":
+            return zstd.compress(data)
+        else:
+            raise Exception(f"Unable to compress content encoded with: {content_encoding}")
 
     def do_curl(self, option: int = CURL_GET) -> None:
         """
@@ -147,6 +181,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
             c.setopt(curl.HEADERFUNCTION, response_headers.append)
             c.setopt(curl.WRITEFUNCTION, buffer.write)
             c.setopt(curl.CAINFO, cert_where())
+            c.setopt(curl.TIMEOUT, 30)
 
             if option == CURL_HEAD:
                 c.setopt(curl.NOBODY, True)
@@ -173,34 +208,53 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             data = buffer.getvalue()
 
-            # # Modify content or response headers
-            # if "content-type" in response_headers:
-            #     content_type = response_headers["content-type"]
-            #     encoding = "utf-8"
-            #     matched = search(r"charset=(\S+)", content_type)
-            #     if matched:
-            #         encoding = matched.group(1)
-            #     
-            #     if "text/html" in content_type:
-            #         m = HTMLModifier(
-            #             data, url, __BASE_URL__, __SERVER_URL__,
-            #             encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
-            #         )
-            #         data, _ = m.get_modified_content()
-            # 
-            #         if "content-security-policy" in response_headers:
-            #             response_headers.pop("content-security-policy")
-            # 
-            #     if "text/css" in content_type:
-            #         m = CSSModifier(
-            #             data, url, __BASE_URL__, encoding,
-            #             __ALLOW_URL_RULES__, __DENY_URL_RULES__
-            #         )
-            #         data, _ = m.get_modified_content()
-            # 
-            # if http_code == 302:
-            #     if "location" in response_headers:
-            #         response_headers["location"] = __BASE_URL__ + response_headers["location"]
+            # Decompress
+            if "content-encoding" in response_headers:
+                data = self.get_uncompressed_data(data, response_headers["content-encoding"])
+
+            # Modify content or response headers
+            if http_code == 302 and "location" in response_headers:
+                response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
+
+            if "content-security-policy" in response_headers:
+                response_headers.pop("content-security-policy")
+
+            if "access-control-allow-credentials" in response_headers:
+                response_headers.pop("access-control-allow-credentials")
+
+            if "access-control-allow-origin" in response_headers:
+                response_headers["access-control-allow-origin"] = "*"
+            
+            if "timing-allow-origin" in response_headers:
+                response_headers["timing-allow-origin"] = "*"
+
+            if "content-type" in response_headers:
+                content_type = response_headers["content-type"]
+                encoding = "utf-8"
+                matched = search(r"charset=(\S+)", content_type)
+                if matched:
+                    encoding = matched.group(1)
+                
+                if "text/html" in content_type:
+                    m = HTMLModifier(
+                        data, url, __BASE_URL__, __SERVER_URL__,
+                        encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                    )
+                    data = m.get_modified_content()
+
+                if "text/css" in content_type:
+                    m = CSSModifier(
+                        data, url, __BASE_URL__, encoding,
+                        __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                    )
+                    data = m.get_modified_content()
+
+            # Compress            
+            if "content-encoding" in response_headers:
+                data = self.get_compressed_data(data, response_headers["content-encoding"])
+
+            if "content-length" in response_headers:
+                response_headers["content-length"] = str(len(data))
 
             self.send_response_only(http_code)
             for key, value in response_headers.to_dict().items():

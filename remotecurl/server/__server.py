@@ -181,6 +181,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
             c.setopt(curl.HEADERFUNCTION, response_headers.append)
             c.setopt(curl.WRITEFUNCTION, buffer.write)
             c.setopt(curl.CAINFO, cert_where())
+            c.setopt(curl.TIMEOUT, 30)
 
             if option == CURL_HEAD:
                 c.setopt(curl.NOBODY, True)
