@@ -273,17 +273,21 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             self.wfile.write(data)
 
-        except Exception:
-            if __DEBUG__:
-                self.send_response_only(200)
-                self.send_header("content-type", "text/plain")
-                self.end_headers()
-                self.wfile.write(bytes(format_exc(), "utf-8"))
-            else:
-                self.send_response(500)
-                self.send_header("content-type", "text/plain")
-                self.end_headers()
-                self.wfile.write(b"")
+        except:
+            try:
+                if __DEBUG__:
+                    self.send_response_only(200)
+                    self.send_header("content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(bytes(format_exc(), "utf-8"))
+                else:
+                    self.send_response(500)
+                    self.send_header("content-type", "text/plain")
+                    self.end_headers()
+                    self.wfile.write(b"")
+            except:
+                # bypass broken pipe error
+                pass
 
     def do_GET(self) -> None:
         """Handle get request"""
