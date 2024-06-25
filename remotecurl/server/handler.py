@@ -108,22 +108,27 @@ class RedirectHandler(BaseHTTPRequestHandler):
         """Return the url requested by user"""
         return self.path[len(__SERVER_PATH__):]
 
-    def get_requst_headers(self) -> tuple[dict[str, str], list[str]]:
+    def get_request_headers(self) -> tuple[dict[str, str], list[str]]:
         """Return the requested headers"""
         headers = _HeaderContainer()
         for header in self.headers.as_string().splitlines():
             headers.append(header)
-
-        url = self.get_requested_url()
-        url_obj = urlparse(url)
+        
         if "host" in headers:
-            headers["host"] = url_obj.hostname
-
-        if "origin" in headers:
-            headers["origin"] = f"{url_obj.scheme}://{url_obj.hostname}"
-
+            requested_url = self.get_requested_url()
+            requested_url_obj = urlparse(requested_url)
+            headers["host"] = requested_url_obj.hostname
+        
         if "referer" in headers:
-            headers["referer"] = url
+            referer_url = headers["referer"][len(__BASE_URL__):]
+            referer_url_obj = urlparse(referer_url)
+            ref_hostname = referer_url_obj.hostname
+            ref_scheme = referer_url_obj.scheme
+        
+            headers["referer"] = f"{ref_scheme}://{ref_hostname}/"
+
+            if "origin" in headers:
+                headers["origin"] = f"{ref_scheme}://{ref_hostname}"
 
         return headers.to_dict(), headers.to_list()
 
@@ -171,7 +176,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
             return
 
         try:
-            hdict, hlist = self.get_requst_headers()
+            hdict, hlist = self.get_request_headers()
             buffer = BytesIO()
             response_headers = _HeaderContainer()
 
@@ -208,25 +213,15 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             data = buffer.getvalue()
 
-            # Decompress
-            if "content-encoding" in response_headers:
-                data = self.get_uncompressed_data(data, response_headers["content-encoding"])
-
             # Modify content or response headers
             if http_code == 302 and "location" in response_headers:
                 response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
-
+            
             if "content-security-policy" in response_headers:
                 response_headers.pop("content-security-policy")
 
-            if "access-control-allow-credentials" in response_headers:
-                response_headers.pop("access-control-allow-credentials")
-
-            if "access-control-allow-origin" in response_headers:
-                response_headers["access-control-allow-origin"] = "*"
-            
-            if "timing-allow-origin" in response_headers:
-                response_headers["timing-allow-origin"] = "*"
+            if "cross-origin-opener-policy" in response_headers:
+                response_headers.pop("cross-origin-opener-policy")
 
             if "content-type" in response_headers:
                 content_type = response_headers["content-type"]
@@ -234,27 +229,42 @@ class RedirectHandler(BaseHTTPRequestHandler):
                 matched = search(r"charset=(\S+)", content_type)
                 if matched:
                     encoding = matched.group(1)
-                
+
+                rewrite_required = any(x in content_type for x in ["text/html", "text/css"])
+
+                if rewrite_required:
+                    # Decompress before making changes
+                    if "content-encoding" in response_headers:
+                        data = self.get_uncompressed_data(data, response_headers["content-encoding"])
+            
                 if "text/html" in content_type:
                     m = HTMLModifier(
                         data, url, __BASE_URL__, __SERVER_URL__,
                         encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                     )
                     data = m.get_modified_content()
-
+            
                 if "text/css" in content_type:
                     m = CSSModifier(
                         data, url, __BASE_URL__, encoding,
                         __ALLOW_URL_RULES__, __DENY_URL_RULES__
                     )
                     data = m.get_modified_content()
+            
+                if rewrite_required:
+                    # Compress after changes          
+                    if "content-encoding" in response_headers:
+                        data = self.get_compressed_data(data, response_headers["content-encoding"])
+            
+                    if "content-length" in response_headers:
+                        response_headers["content-length"] = str(len(data))
 
-            # Compress            
-            if "content-encoding" in response_headers:
-                data = self.get_compressed_data(data, response_headers["content-encoding"])
-
-            if "content-length" in response_headers:
-                response_headers["content-length"] = str(len(data))
+            if "transfer-encoding" in response_headers:
+                if response_headers["transfer-encoding"] == "chunked":
+                    # Remove "Transfer-Encoding: Chunked" header
+                    # because pycurl already combined chunked data
+                    response_headers.pop("transfer-encoding")
+                    response_headers["content-length"] = str(len(data))
 
             self.send_response_only(http_code)
             for key, value in response_headers.to_dict().items():
