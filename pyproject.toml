@@ -23,6 +23,7 @@ dependencies = [
   "certifi>=2023.11.17",
   "jsmin>=3.0.1",
   "pycurl>=7.45.3",
+  "Brotli>=1.1.0",
   "zstd>=1.5.5.1"
 ]
 description = "RemoteCurl"
