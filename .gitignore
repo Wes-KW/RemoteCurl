@@ -6,3 +6,5 @@
 /remotecurl.egg-info
 /.tmp
 __pycache__
+/remotecurl/server/__server.py
+/config.json
