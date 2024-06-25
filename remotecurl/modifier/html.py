@@ -30,7 +30,7 @@ class HTMLModifier(Modifier):
 
     def _py_regex_list_to_js(self, regex_list: list[str]) -> str:
         """Helper function of _add_script. Return a list of regex in javascript string format"""
-        js_regex_list = [f"/{str.replace(rule, "/", "\\/")}/" for rule in regex_list]
+        js_regex_list = [f"/{str.replace(rule, '/', '\\/')}/" for rule in regex_list]
         return f"[{", ".join(js_regex_list)}]"
 
     def _add_script(self) -> None:
