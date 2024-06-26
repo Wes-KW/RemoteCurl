@@ -1,8 +1,9 @@
 // navigation.js
 
+// TODO: add another function handle element with srcset attributes
+
 const element_set = [
 	{"class": HTMLImageElement, "tag": "img", "attr": "src"},
-    {"class": HTMLImageElement, "tag": "img", "attr": "srcset"},
     {"class": HTMLScriptElement, "tag": "script", "attr": "src"},
 	{"class": HTMLEmbedElement, "tag": "embed", "attr": "src"},
 	{"class": HTMLVideoElement, "tag": "video", "attr": "src"},
@@ -27,31 +28,12 @@ for (var i = 0; i < element_set.length; i++) {
 			},
 			set: function(value) {
                 var original_value = this.getAttribute(element["attr"]);
-                if (element["attr"] == "srcset") {
-                    var new_value = "";
-                    const srcsets = value.split(",");
-                    for (var j = 0; j < srcsets.length; j++) {
-                        const srcset = srcsets[j].trim();
-                        if (srcset.indexOf(" ") > -1) {
-                            const srcset_split = srcset.split(" ");
-                            new_value += get_requested_url(srcset_split[0].trim());
-                            new_value += " " + srcset_split[1] + ",";
-                        } else {
-                            new_value += srcset + ", ";
-                        }
-                    }
-                    if (new_value !== original_value) {
-                        this.setAttribute(element["attr"], new_value.substring(0, new_value.length - 2));
-                        return;
-                    }
-                } else {
-                    var new_value = get_requested_url(value);
-				    if (new_value !== original_value) {
-					    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
-					    this.setAttribute(element["attr"], new_value);
-                        return;
-				    }
-                }
+                var new_value = get_requested_url(value);
+				if (new_value !== original_value) {
+				    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
+				    this.setAttribute(element["attr"], new_value);
+                    return;
+				}
 			}
 		}
 	);
