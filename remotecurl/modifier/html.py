@@ -78,7 +78,6 @@ class HTMLModifier(Modifier):
         """DOCSTRING"""
         # Modify Links
         with_objs_list = [
-            {"selector": "meta[content]", "attribute": "content"},
             {"selector": "*[href]", "attribute": "href"},
             {"selector": "*[src]", "attribute": "src"},
             {"selector": "form[action]", "attribute": "action"}
