@@ -1,6 +1,6 @@
 // navigation.js
 
-// TODO: add another function handle element with srcset attributes
+// TODO: add another function to handle element with srcset attributes
 
 const element_set = [
 	{"class": HTMLImageElement, "tag": "img", "attr": "src"},
