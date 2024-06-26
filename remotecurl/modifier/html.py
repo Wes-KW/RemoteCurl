@@ -90,14 +90,15 @@ class HTMLModifier(Modifier):
                 with_obj[attribute] = self._modify_link(with_obj.get(attribute))
 
         # Modify srcset
-        for with_obj in self.document.select("*[srcset]"):
+        for with_obj in self.document.select("img[srcset]"):
             modified_srcsets = []
             srcset_string = with_obj.get("srcset")
             srcsets = srcset_string.split(",")
             for srcset in srcsets:
                 srcset = srcset.strip()
                 if " " not in srcset:
-                    modified_srcsets.append(srcset)                    
+                    srcset = self._modify_link(srcset)
+                    modified_srcsets.append(srcset)
                 else:
                     src, size = srcset.split(" ", 1)
                     src = self._modify_link(src)
