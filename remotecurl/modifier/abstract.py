@@ -1,7 +1,7 @@
 """This file contains an abstract modifier class"""
 
 
-from typing import Any, Optional
+from typing import Optional
 from remotecurl.common.util import check_args, get_absolute_url
 
 

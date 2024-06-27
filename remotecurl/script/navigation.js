@@ -4,11 +4,13 @@
 
 const element_set = [
 	{"class": HTMLImageElement, "tag": "img", "attr": "src"},
+    {"class": HTMLImageElement, "tag": "img", "attr": "srcset"},
     {"class": HTMLScriptElement, "tag": "script", "attr": "src"},
 	{"class": HTMLEmbedElement, "tag": "embed", "attr": "src"},
 	{"class": HTMLVideoElement, "tag": "video", "attr": "src"},
 	{"class": HTMLAudioElement, "tag": "audio", "attr": "src"},
 	{"class": HTMLSourceElement, "tag": "source", "attr": "src"},
+    {"class": HTMLSourceElement, "tag": "source", "attr": "srcset"},
 	{"class": HTMLTrackElement, "tag": "track", "attr": "src"},
 	{"class": HTMLIFrameElement, "tag": "iframe", "attr": "src"},
 	{"class": HTMLLinkElement, "tag": "link", "attr": "href"},
@@ -29,11 +31,24 @@ for (var i = 0; i < element_set.length; i++) {
 			set: function(value) {
                 var original_value = this.getAttribute(element["attr"]);
                 var new_value = get_requested_url(value);
-				if (new_value !== original_value) {
-				    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
-				    this.setAttribute(element["attr"], new_value);
+
+                if (element["attr"] === "srcset"){
+                    var replacer = function (match, p1, offset, string) {
+                        if (match.endsWith('x') && /^\d+$/.test(parseInt(match.substring(0, match.length - 1)))) {
+                            return match;
+                        } else {
+                            return get_requested_url(match);
+                        }
+                    }
+                    new_value = original_value.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
+                }
+
+                if (new_value !== original_value) {
+                    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
+                    this.setAttribute(element["attr"], new_value);
                     return;
-				}
+                }
+                
 			}
 		}
 	);

@@ -24,13 +24,6 @@ function get_requested_url(relative_url) {
 	var abs_url = new URL(relative_url, $url).href;
 	if (check_url(abs_url)) {
 		return $base_url + abs_url;
-	} else if (relative_url.startsWith("data:image/")) {
-		var cached_list = relative_url.split(",");
-		relative_url = "";
-		for (var i = 0; i < cached_list.length; i++) {
-			relative_url += cached_list[i].trim() + ","
-		}
-		return relative_url.substring(0, relative_url.length - 1);
 	} else {
 		var check_list = [$base_url, $server_url];
 		for (var i = 0; i < check_list.length; i++){

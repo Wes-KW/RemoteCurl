@@ -4,7 +4,7 @@
 from typing import Optional
 from bs4 import BeautifulSoup as dom
 from jsmin import jsmin
-from re import search
+from re import Match, search, sub
 from urllib.parse import urlparse
 from remotecurl.modifier.abstract import Modifier
 from remotecurl.common.util import get_script, remove_quote
@@ -30,7 +30,7 @@ class HTMLModifier(Modifier):
 
     def _py_regex_list_to_js(self, regex_list: list[str]) -> str:
         """Helper function of _add_script. Return a list of regex in javascript string format"""
-        js_regex_list = [f"/{str.replace(rule, '/', '\\/')}/" for rule in regex_list]
+        js_regex_list = [f"/{str.replace(rule, '/', '\\/')}/i" for rule in regex_list]
         return f"[{", ".join(js_regex_list)}]"
 
     def _add_script(self) -> None:
@@ -74,13 +74,12 @@ class HTMLModifier(Modifier):
             icon_dom["href"] = f"{url_obj.scheme}://{url_obj.hostname}/favicon.ico"
             self.document.head.append(icon_dom)
 
-    def _modify_static_html(self) -> None:
+    def _modify_html_link(self) -> None:
         """DOCSTRING"""
-        # Modify Links
         with_objs_list = [
             {"selector": "*[href]", "attribute": "href"},
             {"selector": "*[src]", "attribute": "src"},
-            {"selector": "form[action]", "attribute": "action"}
+            {"selector": "form[action]", "attribute": "action"},
         ]
 
         for with_objs in with_objs_list:
@@ -89,25 +88,9 @@ class HTMLModifier(Modifier):
             for with_obj in self.document.select(selector):
                 with_obj[attribute] = self._modify_link(with_obj.get(attribute))
 
-        # Modify srcset
-        for with_obj in self.document.select("img[srcset]"):
-            modified_srcsets = []
-            srcset_string = with_obj.get("srcset")
-            srcsets = srcset_string.split(",")
-            for srcset in srcsets:
-                srcset = srcset.strip()
-                if " " not in srcset:
-                    srcset = self._modify_link(srcset)
-                    modified_srcsets.append(srcset)
-                else:
-                    src, size = srcset.split(" ", 1)
-                    src = self._modify_link(src)
-                    modified_srcsets.append(f"{src} {size}")
-
-            with_obj["srcset"] = ", ".join(modified_srcsets)
-
-        # Modify background-image
-        for with_obj in self.document.select('*[style^="background-image"]'):
+    def _modify_html_css_background(self) -> None:
+        """DOCSTRING"""
+        for with_obj in self.document.select("*[style^='background-image']"):
             style_str = with_obj.get("style")
             pattern = r"background(-image)?\ *:\ *url\(([^)]+)\)"
             matched = search(pattern, style_str)
@@ -117,6 +100,21 @@ class HTMLModifier(Modifier):
                 url = self._modify_link(url)
                 with_obj["style"] = front + url + back
 
+    def _get_new_url_string(self, mobj: Match) -> str:
+        """DOCSTRING"""
+        mstr = str(mobj.group(0))
+        if mstr.endswith("x") and mstr[:-1].isdigit():
+            return mstr
+        else:
+            return self._modify_link(mstr)
+
+    def _modify_html_srcset(self) -> None:
+        """DOCSTRING"""
+        for with_obj in self.document.select("*[srcset]"):
+            srcset = with_obj.get("srcset")
+            srcset = sub(r"(data:image/[^\s,]+,[^\s,]*|[^,\s]+)", self._get_new_url_string, srcset)
+            with_obj["srcset"] = srcset
+
     def get_modified_content(self) -> bytes:
         """Return a tuple of html content bytes and encoding"""
         if self.document.head is None:
@@ -124,5 +122,7 @@ class HTMLModifier(Modifier):
 
         self._add_script()
         self._add_icon()
-        self._modify_static_html()
+        self._modify_html_link()
+        self._modify_html_css_background()
+        self._modify_html_srcset()
         return self.document.prettify(self.encoding)

@@ -23,9 +23,12 @@ class CSSModifier(Modifier):
     def _get_new_url_string(self, mobj: Match) -> str:
         url = remove_quote(mobj.group(1))
         whole_matched = mobj.group(0)
-        front, back = whole_matched.split(url, 1)
-        url = self._modify_link(url)
-        return front + url + back
+        if url != "":
+            front, back = whole_matched.split(url, 1)
+            url = self._modify_link(url)
+            return front + url + back
+        else:
+            return whole_matched
 
     def _modify_css(self) -> None:
         """Modify css content"""
