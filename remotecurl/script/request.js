@@ -3,8 +3,8 @@
 window.XMLHttpRequest.prototype._open = window.XMLHttpRequest.prototype.open;
 window.XMLHttpRequest.prototype.open = function(method, url, async=true) {
     var req_url = get_requested_url(url);
-    redirect_log("XMLHttpRequest", url, req_url);
-    return this._open(method, req_url, async);
+	redirect_log("XMLHttpRequest", url, req_url);
+    this._open(method, req_url, async);
 }
 
 window.Request = new Proxy(
