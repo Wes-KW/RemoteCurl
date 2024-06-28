@@ -164,6 +164,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
         TODO: add code to handle POST file in POST request
         TODO: add code to handle PUT request
+        TODO: add code to check CSP before loading
         """
 
         url = self.get_requested_url()
@@ -220,8 +221,20 @@ class RedirectHandler(BaseHTTPRequestHandler):
             if "content-security-policy" in response_headers:
                 response_headers.pop("content-security-policy")
 
+            if "content-security-policy-report-only" in response_headers:
+                response_headers.pop("content-security-policy-report-only")
+
             if "cross-origin-opener-policy" in response_headers:
                 response_headers.pop("cross-origin-opener-policy")
+
+            if "cross-origin-opener-policy-report-only" in response_headers:
+                response_headers.pop("cross-origin-opener-policy-report-only")
+
+            if "cross-origin-embedder-policy" in response_headers:
+                response_headers.pop("cross-origin-embedder-policy")
+
+            if "cross-origin-embedder-policy-report-only" in response_headers:
+                response_headers.pop("cross-origin-embedder-policy-report-only")
 
             if "content-type" in response_headers:
                 content_type = response_headers["content-type"]
@@ -236,7 +249,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     # Decompress before making changes
                     if "content-encoding" in response_headers:
                         data = self.get_uncompressed_data(data, response_headers["content-encoding"])
-            
+
                 if "text/html" in content_type:
                     m = HTMLModifier(
                         data, url, __BASE_URL__, __SERVER_URL__,
@@ -261,8 +274,6 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             if "transfer-encoding" in response_headers:
                 if response_headers["transfer-encoding"] == "chunked":
-                    # Remove "Transfer-Encoding: Chunked" header
-                    # because pycurl already combined chunked data
                     response_headers.pop("transfer-encoding")
                     response_headers["content-length"] = str(len(data))
 
@@ -273,7 +284,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
             self.wfile.write(data)
 
-        except:
+        except Exception:
             try:
                 if __DEBUG__:
                     self.send_response_only(200)
@@ -286,7 +297,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     self.end_headers()
                     self.wfile.write(b"")
             except:
-                # bypass broken pipe error
+                # bypass broken pip error
                 pass
 
     def do_GET(self) -> None:
