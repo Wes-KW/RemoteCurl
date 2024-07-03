@@ -21,31 +21,35 @@ function check_url(url) {
 }
 
 function get_requested_url(relative_url) {
-	var abs_url = new URL(relative_url, $url).href;
-	if (check_url(abs_url)) {
-		return $base_url + abs_url;
+	if (relative_url === "#") {
+		return relative_url;
 	} else {
-		var check_list = [$base_url, $server_url];
-		for (var i = 0; i < check_list.length; i++){
-			const url = check_list[i];
-			if (relative_url.startsWith(url)) {
-				try{
-					var new_m_url = relative_url.substring(url.length);
-					var url_obj = new URL($url);
-					var new_m_url_obj = new URL(new_m_url, url_obj.origin);
-					if (check_url(new_m_url_obj.href)) {
-						return $base_url + new_m_url_obj.href;
-					} else {
+		var abs_url = new URL(relative_url, $url).href;
+		if (check_url(abs_url)) {
+			return $base_url + abs_url;
+		} else {
+			var check_list = [$base_url, $server_url];
+			for (var i = 0; i < check_list.length; i++){
+				const url = check_list[i];
+				if (relative_url.startsWith(url)) {
+					try{
+						var new_m_url = relative_url.substring(url.length);
+						var url_obj = new URL($url);
+						var new_m_url_obj = new URL(new_m_url, url_obj.origin);
+						if (check_url(new_m_url_obj.href)) {
+							return $base_url + new_m_url_obj.href;
+						} else {
+							continue;
+						}
+					} catch (e) {
 						continue;
 					}
-				} catch (e) {
-					continue;
+
 				}
-				
 			}
 		}
+		return relative_url;
 	}
-	return relative_url;
 }
 
 function redirect_log(name, original_url, new_url) {
