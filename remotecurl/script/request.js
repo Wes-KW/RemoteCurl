@@ -33,9 +33,9 @@ window.fetch = function(url, options) {
     });
 }
 
-window.navigator._sendBeacon = window.navigator.sendBeacon;
-window.navigator.sendBeacon = function(url, data=null) {
+window.Navigator.prototype._sendBeacon = window.Navigator.prototype.sendBeacon;
+window.Navigator.prototype.sendBeacon = function(url, data=null) {
 	var req_url = get_requested_url(url);
 	redirect_log("navigator.sendBeacon", url, req_url);
-	window.navigator._sendBeacon(req_url, data);
+	this._sendBeacon(req_url, data);
 };
