@@ -17,7 +17,7 @@ const element_set = [
 	{"class": HTMLFormElement, "tag": "form" ,"attr": "action"}
 ];
 
-for (var i = 0; i < element_set.length; i++) {
+for (let i = 0; i < element_set.length; i++) {
 	const element = element_set[i];
 	Object.defineProperty(
 		element["class"].prototype, element["attr"], {
@@ -27,11 +27,11 @@ for (var i = 0; i < element_set.length; i++) {
 				return this.getAttribute(element["attr"]);
 			},
 			set: function(value) {
-                var original_value = this.getAttribute(element["attr"]);
-                var new_value = get_requested_url(value);
+                let original_value = this.getAttribute(element["attr"]);
+                let new_value = get_requested_url(value);
 
                 if (element["attr"] === "srcset"){
-                    var replacer = function (match, p1, offset, string) {
+                    let replacer = function (match, p1, offset, string) {
                         if (match.endsWith('x') && /^\d+$/.test(parseInt(match.substring(0, match.length - 1)))) {
                             return match;
                         } else {
@@ -54,17 +54,17 @@ for (var i = 0; i < element_set.length; i++) {
 
 function observer_callback (mutations) {
     // reset src and href of any new element
-    for (var i = 0; i < element_set.length; i++) {
+    for (let i = 0; i < element_set.length; i++) {
         const element = element_set[i];
         const doms = document.querySelectorAll(element["tag"] + "[" + element["attr"] + "]");
-        for (var j = 0; j < doms.length; j++) {
+        for (let j = 0; j < doms.length; j++) {
             const dom = doms[j];
             dom[element["attr"]] = dom[element["attr"]];
         }
     }
 
-    var new_url = document.location.href;
-    var tmp_url = get_requested_url(new_url);
+    let new_url = document.location.href;
+    let tmp_url = get_requested_url(new_url);
     if ($url !== new_url) {
         if (tmp_url === new_url) {
             tmp_url = $base_url + $url;
@@ -83,8 +83,8 @@ head_observer.observe(head, {childList: true, subtree: true});
 
 const body_detector_interval = 1000;
 const body_detector_time_out = 60000;
-var time_count = 0;
-var body_detector = window.setInterval(function(){
+let time_count = 0;
+let body_detector = window.setInterval(function(){
     if (time_count >= body_detector_time_out) {
         window.clearInterval(body_detector);
         console.warn(
