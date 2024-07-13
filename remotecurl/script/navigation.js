@@ -40,7 +40,6 @@ for (let i = 0; i < element_set.length; i++) {
                         }
                     }
                     new_value = value.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
-                    return;
                 }
 
                 redirect_log(prop, value, new_value);
