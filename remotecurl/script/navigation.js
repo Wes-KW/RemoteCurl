@@ -19,18 +19,19 @@ const element_set = [
 
 for (let i = 0; i < element_set.length; i++) {
 	const element = element_set[i];
-	Object.defineProperty(
+    Object.defineProperty(
 		element["class"].prototype, element["attr"], {
 			enumerable: true,
 			configurable: true,
 			get: function() {
-				return this.getAttribute(element["attr"]);
+                let key = element["attr"];
+                return this.getAttribute("_" + key);
 			},
 			set: function(value) {
-                let original_value = this.getAttribute(element["attr"]);
+                let key = element["attr"];
+                let prop = element["class"] + "." + key;
                 let new_value = get_requested_url(value);
-
-                if (element["attr"] === "srcset"){
+                if (key === "srcset"){
                     let replacer = function (match, p1, offset, string) {
                         if (match.endsWith('x') && /^\d+$/.test(parseInt(match.substring(0, match.length - 1)))) {
                             return match;
@@ -38,15 +39,17 @@ for (let i = 0; i < element_set.length; i++) {
                             return get_requested_url(match);
                         }
                     }
-                    new_value = original_value.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
-                }
-
-                if (new_value !== original_value) {
-                    redirect_log(element["class"].name + "." + element["attr"], value, new_value);
-                    this.setAttribute(element["attr"], new_value);
+                    new_value = value.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
                     return;
                 }
-                
+
+                redirect_log(prop, value, new_value);
+                if (this.getAttribute(key) !== new_value) {
+                    this.setAttribute("_" + key, value);
+                    this.setAttribute(key, new_value);
+                }
+
+                return;
 			}
 		}
 	);
@@ -59,7 +62,7 @@ function observer_callback (mutations) {
         const doms = document.querySelectorAll(element["tag"] + "[" + element["attr"] + "]");
         for (let j = 0; j < doms.length; j++) {
             const dom = doms[j];
-            dom[element["attr"]] = dom[element["attr"]];
+            dom[element["attr"]] = dom.getAttribute([element["attr"]]);
         }
     }
 

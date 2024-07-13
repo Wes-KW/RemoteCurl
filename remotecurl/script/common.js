@@ -38,8 +38,6 @@ function get_requested_url(relative_url) {
 						let new_m_url_obj = new URL(new_m_url, url_obj.origin);
 						if (check_url(new_m_url_obj.href)) {
 							return $base_url + new_m_url_obj.href;
-						} else {
-							continue;
 						}
 					} catch (e) {
 						continue;

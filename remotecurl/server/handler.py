@@ -169,120 +169,119 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
         url = self.get_requested_url()
 
-        if not check_args(url, __ALLOW_URL_RULES__, __DENY_URL_RULES__):
-            self.send_response_only(403)
-            self.send_header("content-type", "text/plain")
-            self.end_headers()
-            self.wfile.write(b"DENIED_ACCESS_TO_URL")
-            return
-
         try:
-            hdict, hlist = self.get_request_headers()
-            buffer = BytesIO()
-            response_headers = _HeaderContainer()
+            if not check_args(url, __ALLOW_URL_RULES__, __DENY_URL_RULES__):
+                self.send_response_only(403)
+                self.send_header("content-type", "text/plain")
+                self.end_headers()
+                self.wfile.write(b"DENIED_ACCESS_TO_URL")
+            else:
+                hdict, hlist = self.get_request_headers()
+                buffer = BytesIO()
+                response_headers = _HeaderContainer()
 
-            c = curl.Curl()
-            c.setopt(curl.URL, url)
-            c.setopt(curl.HTTPHEADER, hlist)
-            c.setopt(curl.HEADERFUNCTION, response_headers.append)
-            c.setopt(curl.WRITEFUNCTION, buffer.write)
-            c.setopt(curl.CAINFO, cert_where())
-            c.setopt(curl.TIMEOUT, 30)
+                c = curl.Curl()
+                c.setopt(curl.URL, url)
+                c.setopt(curl.HTTPHEADER, hlist)
+                c.setopt(curl.HEADERFUNCTION, response_headers.append)
+                c.setopt(curl.WRITEFUNCTION, buffer.write)
+                c.setopt(curl.CAINFO, cert_where())
+                c.setopt(curl.TIMEOUT, 30)
 
-            if option == CURL_HEAD:
-                c.setopt(curl.NOBODY, True)
+                if option == CURL_HEAD:
+                    c.setopt(curl.NOBODY, True)
 
-            if option == CURL_POST:
-                # POST
-                # TODO: Check if file is uploaded to this server,
-                # TODO: If true, upload the file using HTTPPOST
-                length = int(self.headers.get("content-length"))
-                c.setopt(curl.POSTFIELDS, self.rfile.read(length))
+                if option == CURL_POST:
+                    # POST
+                    # TODO: Check if file is uploaded to this server,
+                    # TODO: If true, upload the file using HTTPPOST
+                    length = int(self.headers.get("content-length"))
+                    c.setopt(curl.POSTFIELDS, self.rfile.read(length))
 
-            if option == CURL_OPTIONS:
-                # OPTIONS
-                c.setopt(curl.CUSTOMREQUEST, "OPTIONS")
+                if option == CURL_OPTIONS:
+                    # OPTIONS
+                    c.setopt(curl.CUSTOMREQUEST, "OPTIONS")
 
-            # Change header options
-            c.setopt(curl.USERAGENT, hdict["user-agent"])
+                # Change header options
+                c.setopt(curl.USERAGENT, hdict["user-agent"])
 
-            # Send the request
-            c.perform()
+                # Send the request
+                c.perform()
 
-            http_code = c.getinfo(curl.HTTP_CODE)
-            c.close()
+                http_code = c.getinfo(curl.HTTP_CODE)
+                c.close()
 
-            data = buffer.getvalue()
+                data = buffer.getvalue()
 
-            # Modify content or response headers
-            if http_code == 302 and "location" in response_headers:
-                response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
-            
-            if "content-security-policy" in response_headers:
-                response_headers.pop("content-security-policy")
+                # Modify content or response headers
+                if http_code == 302 and "location" in response_headers:
+                    response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
 
-            if "content-security-policy-report-only" in response_headers:
-                response_headers.pop("content-security-policy-report-only")
+                if "content-security-policy" in response_headers:
+                    response_headers.pop("content-security-policy")
 
-            if "cross-origin-opener-policy" in response_headers:
-                response_headers.pop("cross-origin-opener-policy")
+                if "content-security-policy-report-only" in response_headers:
+                    response_headers.pop("content-security-policy-report-only")
 
-            if "cross-origin-opener-policy-report-only" in response_headers:
-                response_headers.pop("cross-origin-opener-policy-report-only")
+                if "cross-origin-opener-policy" in response_headers:
+                    response_headers.pop("cross-origin-opener-policy")
 
-            if "cross-origin-embedder-policy" in response_headers:
-                response_headers.pop("cross-origin-embedder-policy")
+                if "cross-origin-opener-policy-report-only" in response_headers:
+                    response_headers.pop("cross-origin-opener-policy-report-only")
 
-            if "cross-origin-embedder-policy-report-only" in response_headers:
-                response_headers.pop("cross-origin-embedder-policy-report-only")
+                if "cross-origin-embedder-policy" in response_headers:
+                    response_headers.pop("cross-origin-embedder-policy")
 
-            if "content-type" in response_headers:
-                content_type = response_headers["content-type"]
-                encoding = "utf-8"
-                matched = search(r"charset=(\S+)", content_type)
-                if matched:
-                    encoding = matched.group(1)
+                if "cross-origin-embedder-policy-report-only" in response_headers:
+                    response_headers.pop("cross-origin-embedder-policy-report-only")
 
-                rewrite_required = any(x in content_type for x in ["text/html", "text/css"])
+                if "content-type" in response_headers:
+                    content_type = response_headers["content-type"]
+                    encoding = "utf-8"
+                    matched = search(r"charset=(\S+)", content_type)
+                    if matched:
+                        encoding = matched.group(1)
 
-                if rewrite_required:
-                    # Decompress before making changes
-                    if "content-encoding" in response_headers:
-                        data = self.get_uncompressed_data(data, response_headers["content-encoding"])
+                    rewrite_required = any(x in content_type for x in ["text/html", "text/css"])
 
-                if "text/html" in content_type:
-                    m = HTMLModifier(
-                        data, url, __BASE_URL__, __SERVER_URL__,
-                        encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                    )
-                    data = m.get_modified_content()
-            
-                if "text/css" in content_type:
-                    m = CSSModifier(
-                        data, url, __BASE_URL__, encoding,
-                        __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                    )
-                    data = m.get_modified_content()
-            
-                if rewrite_required:
-                    # Compress after changes          
-                    if "content-encoding" in response_headers:
-                        data = self.get_compressed_data(data, response_headers["content-encoding"])
-            
-                    if "content-length" in response_headers:
+                    if rewrite_required:
+                        # Decompress before making changes
+                        if "content-encoding" in response_headers:
+                            data = self.get_uncompressed_data(data, response_headers["content-encoding"])
+
+                    if "text/html" in content_type:
+                        m = HTMLModifier(
+                            data, url, __BASE_URL__, __SERVER_URL__,
+                            encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                        )
+                        data = m.get_modified_content()
+
+                    if "text/css" in content_type:
+                        m = CSSModifier(
+                            data, url, __BASE_URL__, encoding,
+                            __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                        )
+                        data = m.get_modified_content()
+
+                    if rewrite_required:
+                        # Compress after changes          
+                        if "content-encoding" in response_headers:
+                            data = self.get_compressed_data(data, response_headers["content-encoding"])
+
+                        if "content-length" in response_headers:
+                            response_headers["content-length"] = str(len(data))
+
+                if "transfer-encoding" in response_headers:
+                    if response_headers["transfer-encoding"] == "chunked":
+                        response_headers.pop("transfer-encoding")
                         response_headers["content-length"] = str(len(data))
 
-            if "transfer-encoding" in response_headers:
-                if response_headers["transfer-encoding"] == "chunked":
-                    response_headers.pop("transfer-encoding")
-                    response_headers["content-length"] = str(len(data))
+                self.send_response_only(http_code)
+                for key, value in response_headers.to_dict().items():
+                    self.send_header(key, value)
+                self.end_headers()
 
-            self.send_response_only(http_code)
-            for key, value in response_headers.to_dict().items():
-                self.send_header(key, value)
-            self.end_headers()
-
-            self.wfile.write(data)
+                self.wfile.write(data)
 
         except Exception:
             try:
