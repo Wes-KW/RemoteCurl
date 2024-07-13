@@ -68,17 +68,6 @@ class HTMLModifier(Modifier):
             script.string = script_content
             self.document.head.insert(0, script)
 
-    def _add_icon(self) -> None:
-        """DOCSTRING"""
-        if self.document.head is not None:
-            icon_doms = self.document.select("link[rel='*icon']")
-            if len(icon_doms) == 0:
-                url_obj = urlparse(self.url)
-                icon_dom = self.document.new_tag("link")
-                icon_dom["rel"] = "icon"
-                icon_dom["href"] = f"{url_obj.scheme}://{url_obj.hostname}/favicon.ico"
-                self.document.head.append(icon_dom)
-
     def _modify_html_link(self) -> None:
         """DOCSTRING"""
         with_objs_list = [
@@ -139,7 +128,6 @@ class HTMLModifier(Modifier):
     def get_modified_content(self) -> bytes:
         """Return a tuple of html content bytes and encoding"""
         self._add_script()
-        self._add_icon()
         self._modify_html_link()
         self._modify_html_css_background()
         self._modify_html_srcset()
