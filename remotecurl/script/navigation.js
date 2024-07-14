@@ -29,7 +29,7 @@ for (let i = 0; i < element_set.length; i++) {
 			},
 			set: function(value) {
                 let key = element["attr"];
-                let prop = element["class"] + "." + key;
+                let prop = element["class"].name + "." + key;
                 let new_value = get_requested_url(value);
                 if (key === "srcset"){
                     let replacer = function (match, p1, offset, string) {
