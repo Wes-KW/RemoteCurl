@@ -127,7 +127,7 @@ class HTMLModifier(Modifier):
             style = with_obj.string.encode(self.encoding)
             style_modifier = CSSModifier(
                 style, self.url,
-                self.base_url,
+                self.path,
                 self.encoding,
                 self.allow_url_rules,
                 self.deny_url_rules
