@@ -25,7 +25,7 @@ function get_requested_url(relative_url) {
 	if (relative_url === "#") {
 		return relative_url;
 	} else {
-		let url_prefix_list = [$path, $server_url];
+		let url_prefix_list = [$base_url, $server_url, $path];
 		for (let url_prefix of url_prefix_list){
 			if (relative_url.startsWith(url_prefix)) {
 				try{

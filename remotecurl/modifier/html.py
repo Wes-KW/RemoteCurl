@@ -52,6 +52,7 @@ class HTMLModifier(Modifier):
                 (function(){{
                     const $path = "{self.path}";
                     const $server_url = "{self.server_url}";
+                    const $base_url = "{self.server_url}{self.path[1:]}";
                     const $allow_url = {js_allow_url_rules};
                     const $deny_url = {js_deny_url_rules};
                     var $url = "{self.url}";
