@@ -52,6 +52,6 @@ function get_requested_url(relative_url) {
 
 function redirect_log(name, original_url, new_url) {
     if (original_url !== new_url) {
-    	console.info(name + ": Redirect " + original_url + " to " + new_url);
+    	console.debug(name + ": Redirect " + original_url + " to " + new_url);
     }
 }
