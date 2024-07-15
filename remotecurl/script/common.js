@@ -24,7 +24,7 @@ function get_requested_url(relative_url) {
 	if (relative_url === "#") {
 		return relative_url;
 	} else {
-		if (relative_url.includes($path + abs_url)) {
+		if (relative_url.includes($path + $url)) {
 			return relative_url;
 		} else {
 			let abs_url = new URL(relative_url, $url).href
