@@ -57,6 +57,7 @@ function overwrite_history(window) {
     window.History.prototype.pushState = function(data, title, url) {
         var req_url = get_requested_url(url);
 		redirect_log("History.pushState", url, req_url);
+        $url = req_url;
         this._pushState(data , title, req_url);
     }
 
@@ -64,6 +65,7 @@ function overwrite_history(window) {
     window.History.prototype.replaceState = function(data , title, url) {
         var req_url = get_requested_url(url);
 		redirect_log("History.replaceState", url, req_url);
+        $url = req_url;
         this._replaceState(data , title, req_url);
     }
 }
