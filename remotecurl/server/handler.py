@@ -251,14 +251,14 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
                     if "text/html" in content_type:
                         m = HTMLModifier(
-                            data, url, __BASE_URL__, __SERVER_URL__,
+                            data, url, __SERVER_PATH__, __SERVER_URL__,
                             encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                         )
                         data = m.get_modified_content()
 
                     if "text/css" in content_type:
                         m = CSSModifier(
-                            data, url, __BASE_URL__, encoding,
+                            data, url, __SERVER_PATH__, encoding,
                             __ALLOW_URL_RULES__, __DENY_URL_RULES__
                         )
                         data = m.get_modified_content()
