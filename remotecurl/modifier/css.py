@@ -13,12 +13,12 @@ class CSSModifier(Modifier):
     css: str
 
     def __init__(
-        self, css: bytes, url: str, base_url: str = "", encoding: Optional[str] = None,
+        self, css: bytes, url: str, path: str = "", encoding: Optional[str] = None,
         allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a CSS modifier"""
         self.css = css.decode(encoding) 
-        super().__init__(url, base_url, encoding, allow_url_rules, deny_url_rules)
+        super().__init__(url, path, encoding, allow_url_rules, deny_url_rules)
 
     def _get_new_url_string(self, mobj: Match) -> str:
         url = remove_quote(mobj.group(1))

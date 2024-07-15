@@ -17,17 +17,16 @@ class HTMLModifier(Modifier):
     TODO: <base> element is considered. <head>
     """
 
-    server_url: str
     document: dom
 
     def __init__(
-        self, html: bytes, url: str, base_url: str, server_url: str, encoding: Optional[str] = None,
+        self, html: bytes, url: str, path: str, server_url: str, encoding: Optional[str] = None,
         allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a HTML modifier"""
         self.server_url = server_url
         self.document = dom(html.decode(encoding), "html.parser")
-        super().__init__(url, base_url, encoding, allow_url_rules, deny_url_rules)
+        super().__init__(url, path, encoding, allow_url_rules, deny_url_rules)
 
     def _py_regex_list_to_js(self, regex_list: list[str]) -> str:
         """Helper function of _add_script. Return a list of regex in javascript string format"""
@@ -37,7 +36,7 @@ class HTMLModifier(Modifier):
     def _add_script(self) -> None:
         """Add script to the html document"""
         if self.document.head is not None:
-            script =self.document.new_tag("script")
+            script = self.document.new_tag("script")
             script.attrs["type"] = "text/javascript"
             script.attrs["id"] = "remotecurl"
             script_names = ["common", "request", "navigation"]
@@ -50,8 +49,7 @@ class HTMLModifier(Modifier):
 
             script_content = f"""
                 (function(){{
-                    const $server_url = "{self.server_url}";
-                    const $base_url = "{self.base_url}";
+                    const $path = "{self.path}";
                     const $allow_url = {js_allow_url_rules};
                     const $deny_url = {js_deny_url_rules};
                     var $url = "{self.url}";
