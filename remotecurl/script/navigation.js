@@ -57,7 +57,6 @@ function overwrite_history(window) {
     window.History.prototype.pushState = function(data, title, url) {
         var req_url = get_requested_url(url);
 		redirect_log("History.pushState", url, req_url);
-        $url = req_url;
         this._pushState(data , title, req_url);
     }
 
@@ -65,7 +64,6 @@ function overwrite_history(window) {
     window.History.prototype.replaceState = function(data , title, url) {
         var req_url = get_requested_url(url);
 		redirect_log("History.replaceState", url, req_url);
-        $url = req_url;
         this._replaceState(data , title, req_url);
     }
 }
@@ -84,3 +82,43 @@ HTMLElement.prototype.appendChild = function(node) {
         return this._appendChild(node);
     }
 }
+
+function observer_callback (mutations) {
+    // reset src and href of any new element
+    for (let i = 0; i < element_set.length; i++) {
+        const element = element_set[i];
+        const doms = document.querySelectorAll(element["tag"] + "[" + element["attr"] + "]");
+        for (let j = 0; j < doms.length; j++) {
+            const dom = doms[j];
+            dom[element["attr"]] = dom.getAttribute([element["attr"]]);
+        }
+    }
+}
+
+const head = document.querySelector("head");
+const head_observer = new MutationObserver(observer_callback);
+head_observer.observe(head, {childList: true, subtree: true});
+
+const body_detector_interval = 1000;
+const body_detector_time_out = 60000;
+let time_count = 0;
+let body_detector = window.setInterval(function(){
+    if (time_count >= body_detector_time_out) {
+        window.clearInterval(body_detector);
+        console.warn(
+            "WARNING: Time out for detecting body as an observee.",
+            "\n`window.history.replaceState` and `window.history.pushState` might not work as expected"
+        );
+        return;
+    }
+
+    const body = document.querySelector("body");
+    const body_observer = new MutationObserver(observer_callback);
+    if (body !== null) {
+        body_observer.observe(body, {childList: true, subtree: true});
+        window.clearInterval(body_detector);
+        return;
+    }
+
+    time_count += body_detector_interval;
+}, body_detector_interval);
