@@ -36,7 +36,7 @@ function get_requested_url(relative_url) {
 				if (relative_url.startsWith(prefix)){
 					try {
 						let minus = new URL(relative_url.substr(prefix.length));
-						if (check_url(minus)) {
+						if (check_url(minus.href)) {
 							return $path + minus.href;
 						}
 					} catch(e) {}
