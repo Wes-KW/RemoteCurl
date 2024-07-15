@@ -21,6 +21,9 @@ function check_url(url) {
 }
 
 function get_requested_url(relative_url) {
+	if (relative_url instanceof TrustedScriptURL) {
+		relative_url = relative_url.toString();
+	}
 	if (relative_url === "#") {
 		return relative_url;
 	} else {
