@@ -1,20 +1,20 @@
 // navigation.js
 
 const dom_mappings = [
-	{"dom": HTMLImageElement, "attr": "src"},
-    {"dom": HTMLImageElement, "attr": "srcset"},
-    {"dom": HTMLScriptElement, "attr": "src"},
-	{"dom": HTMLEmbedElement, "attr": "src"},
-	{"dom": HTMLVideoElement, "attr": "src"},
-	{"dom": HTMLAudioElement, "attr": "src"},
-	{"dom": HTMLSourceElement, "attr": "src"},
-    {"dom": HTMLSourceElement, "attr": "srcset"},
-	{"dom": HTMLTrackElement, "attr": "src"},
-	{"dom": HTMLIFrameElement, "attr": "src"},
-	{"dom": HTMLLinkElement, "attr": "href"},
-	{"dom": HTMLAnchorElement, "attr": "href"},
-	{"dom": HTMLAreaElement, "attr": "href"},
-	{"dom": HTMLFormElement, "attr": "action"}
+	{"dom": HTMLImageElement, "tag": "img", "attr": "src"},
+    {"dom": HTMLImageElement, "tag": "img", "attr": "srcset"},
+    {"dom": HTMLScriptElement, "tag": "script", "attr": "src"},
+	{"dom": HTMLEmbedElement, "tag": "embed", "attr": "src"},
+	{"dom": HTMLVideoElement, "tag": "video", "attr": "src"},
+	{"dom": HTMLAudioElement, "tag": "audio", "attr": "src"},
+	{"dom": HTMLSourceElement, "tag": "source", "attr": "src"},
+    {"dom": HTMLSourceElement, "tag": "source", "attr": "srcset"},
+	{"dom": HTMLTrackElement, "tag": "track", "attr": "src"},
+	{"dom": HTMLIFrameElement, "tag": "iframe", "attr": "src"},
+	{"dom": HTMLLinkElement, "tag": "link", "attr": "href"},
+	{"dom": HTMLAnchorElement, "tag": "a", "attr": "href"},
+	{"dom": HTMLAreaElement, "tag": "area", "attr": "href"},
+	{"dom": HTMLFormElement, "tag": "form", "attr": "action"}
 ];
 
 for (let dom_mapping of dom_mappings) {
@@ -85,12 +85,13 @@ HTMLElement.prototype.appendChild = function(node) {
 
 function observer_callback (mutations) {
     // reset src and href of any new element
-    for (let i = 0; i < element_set.length; i++) {
-        const element = element_set[i];
-        const doms = document.querySelectorAll(element["tag"] + "[" + element["attr"] + "]");
+    for (let dom_mapping of dom_mappings) {
+        let node_name = dom_mapping["tag"];
+        let attr = dom_mapping["attr"];
+        let doms = document.querySelectorAll(node_name + "[" + attr + "]");
         for (let j = 0; j < doms.length; j++) {
             const dom = doms[j];
-            dom[element["attr"]] = dom.getAttribute([element["attr"]]);
+            dom[attr] = dom.getAttribute(attr);
         }
     }
 }
