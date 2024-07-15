@@ -17,6 +17,7 @@ class HTMLModifier(Modifier):
     TODO: <base> element is considered. <head>
     """
 
+    server_url: str
     document: dom
 
     def __init__(
@@ -50,6 +51,7 @@ class HTMLModifier(Modifier):
             script_content = f"""
                 (function(){{
                     const $path = "{self.path}";
+                    const $server_url = "{self.server_url}";
                     const $allow_url = {js_allow_url_rules};
                     const $deny_url = {js_deny_url_rules};
                     var $url = "{self.url}";
