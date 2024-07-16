@@ -3,6 +3,7 @@ from base64 import b64decode, b64encode
 from os.path import realpath, dirname
 from urllib.parse import urljoin, quote_plus, unquote_plus
 from re import search
+import mimetypes
 
 
 def btoa(decoded: str) -> str:
@@ -58,14 +59,20 @@ def get_absolute_url(base_url: str, relative_url: Optional[str] = None) -> str:
     return urljoin(base_url, relative_url)
 
 
-def get_app_resource(filename: str) -> str:
-    """DOCSTRING"""
+def get_app_resource(filename: str) -> tuple[str, str]:
+    """Get the file content and its mime type"""
     root_dir = dirname(dirname(realpath(__file__)))
+    abs_path = f"{root_dir}/app/{filename}"
     content = ""
-    with open(f"{root_dir}/app/{filename}", "r") as f:
+    with open(abs_path, "r") as f:
         content = f.read()
 
-    return content
+    mimetype, _ = mimetypes.guess_type(abs_path)
+    
+    if mimetype:
+        return content, mimetype
+
+    return content, "application/octet-stream"
 
 
 def remove_quote(raw: str) -> str:
