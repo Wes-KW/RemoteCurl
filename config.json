@@ -3,6 +3,7 @@
 		"scheme": "http",
 		"name": "localhost",
 		"port": 8080,
+		"path": "/m/",
 		"rules": {
 			"url":{
 				"allow": ["^https?://.+"],
