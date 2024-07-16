@@ -96,30 +96,5 @@ function observer_callback (mutations) {
     }
 }
 
-const head = document.querySelector("head");
-const head_observer = new MutationObserver(observer_callback);
-head_observer.observe(head, {childList: true, subtree: true});
-
-const body_detector_interval = 1000;
-const body_detector_time_out = 60000;
-let time_count = 0;
-let body_detector = window.setInterval(function(){
-    if (time_count >= body_detector_time_out) {
-        window.clearInterval(body_detector);
-        console.warn(
-            "WARNING: Time out for detecting body as an observee.",
-            "\n`window.history.replaceState` and `window.history.pushState` might not work as expected"
-        );
-        return;
-    }
-
-    const body = document.querySelector("body");
-    const body_observer = new MutationObserver(observer_callback);
-    if (body !== null) {
-        body_observer.observe(body, {childList: true, subtree: true});
-        window.clearInterval(body_detector);
-        return;
-    }
-
-    time_count += body_detector_interval;
-}, body_detector_interval);
+const observer = new MutationObserver(observer_callback);
+observer.observe(document, {childList: true, subtree: true});
