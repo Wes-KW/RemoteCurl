@@ -58,14 +58,14 @@ def get_absolute_url(base_url: str, relative_url: Optional[str] = None) -> str:
     return urljoin(base_url, relative_url)
 
 
-def get_script(filename: str) -> str:
+def get_app_resource(filename: str) -> str:
     """DOCSTRING"""
     root_dir = dirname(dirname(realpath(__file__)))
-    script_content = ""
-    with open(f"{root_dir}/script/{filename}.js", "r") as f:
-        script_content = f.read()
+    content = ""
+    with open(f"{root_dir}/app/{filename}", "r") as f:
+        content = f.read()
 
-    return script_content    
+    return content
 
 
 def remove_quote(raw: str) -> str:
