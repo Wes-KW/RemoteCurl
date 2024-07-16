@@ -40,7 +40,7 @@ class HTMLModifier(Modifier):
             script = self.document.new_tag("script")
             script.attrs["type"] = "text/javascript"
             script.attrs["id"] = "remotecurl"
-            script_names = ["common", "request", "navigation"]
+            script_names = ["common", "location", "request", "navigation"]
             script_embedded = ""
             for script_name in script_names:
                 script_embedded += get_script(script_name)
