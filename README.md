@@ -25,7 +25,7 @@ python3 -m remotecurl
 
 5. Navigate to `{base_url}{website_url}` in any browser where `{base_url}` equals to `{server.scheme}://{server.name}:{server.port}{server.path}` in the configuration file
 
-For example, if your server scheme is `http`, name is `localhost`, port is `8080` and path is `/m/`, and you want to navigate to `google.com`, type `http://localhost:8080/m/https://www.google.com` in the browser.
+For example, if your server scheme is `http`, name is `localhost`, port is `8080`, and you want to navigate to `google.com`, type `http://localhost:8080/main/https://www.google.com` in the browser.
 
 ## Documentation
 Will be created soon 😀
