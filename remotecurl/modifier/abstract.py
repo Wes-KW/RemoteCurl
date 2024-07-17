@@ -1,20 +1,19 @@
 """This file contains an abstract modifier class"""
 
 
-from typing import Optional
 from remotecurl.common.util import check_args, get_absolute_url
 
 
 class Modifier:
     
-    path: str
     url: str
+    path: str
     allow_url_rules: list[str]
     deny_url_rules: list[str]
     encoding: str
     
     def __init__(
-        self, url: str, path: str, encoding: Optional[str] = None,
+        self, url: str, path: str, encoding: str = "utf-8",
         allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a modifier"""

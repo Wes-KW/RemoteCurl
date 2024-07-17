@@ -1,14 +1,13 @@
 """This file contain a HTML modifier class"""
 
 
-from typing import Optional
 from bs4 import BeautifulSoup as dom
-from jsmin import jsmin
 from re import Match, search, sub
 from urllib.parse import urlparse
 from remotecurl.modifier.abstract import Modifier
 from remotecurl.modifier.css import CSSModifier
-from remotecurl.common.util import get_script, remove_quote
+from remotecurl.modifier.js import JSModifier, JSMODIFIER_MAIN_SCRIPT
+from remotecurl.common.util import remove_quote
 
 
 class HTMLModifier(Modifier):
@@ -17,22 +16,19 @@ class HTMLModifier(Modifier):
     TODO: <base> element is considered. <head>
     """
 
+    worker_path: str
     server_url: str
     document: dom
 
     def __init__(
-        self, html: bytes, url: str, path: str, server_url: str, encoding: Optional[str] = None,
-        allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
+        self, html: bytes, url: str, main_path: str, worker_path: str, server_url: str,
+        encoding: str = "utf-8",allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a HTML modifier"""
+        self.worker_path = worker_path
         self.server_url = server_url
         self.document = dom(html.decode(encoding), "html.parser")
-        super().__init__(url, path, encoding, allow_url_rules, deny_url_rules)
-
-    def _py_regex_list_to_js(self, regex_list: list[str]) -> str:
-        """Helper function of _add_script. Return a list of regex in javascript string format"""
-        js_regex_list = [f"/{str.replace(rule, '/', '\\/')}/i" for rule in regex_list]
-        return f"[{", ".join(js_regex_list)}]"
+        super().__init__(url, main_path, encoding, allow_url_rules, deny_url_rules)
 
     def _add_script(self) -> None:
         """Add script to the html document"""
@@ -40,33 +36,13 @@ class HTMLModifier(Modifier):
             script = self.document.new_tag("script")
             script.attrs["type"] = "text/javascript"
             script.attrs["id"] = "remotecurl"
-            script_names = ["common", "location", "request", "navigation"]
-            script_embedded = ""
-            for script_name in script_names:
-                script_embedded += get_script(script_name)
 
-            js_allow_url_rules = self._py_regex_list_to_js(self.allow_url_rules)
-            js_deny_url_rules = self._py_regex_list_to_js(self.deny_url_rules)
+            m = JSModifier(
+                "".encode(self.encoding), self.url, self.path, self.worker_path,
+                self.server_url, self.encoding, self.allow_url_rules, self.deny_url_rules
+            )
 
-            script_content = f"""
-                (function(){{
-                    const $path = "{self.path}";
-                    const $server_url = "{self.server_url}";
-                    const $base_url = "{self.server_url}{self.path[1:]}";
-                    const $allow_url = {js_allow_url_rules};
-                    const $deny_url = {js_deny_url_rules};
-                    var $url = "{self.url}";
-
-                    {script_embedded}
-
-                    if (document.querySelector("#remotecurl") !== null) {{
-                        document.head.removeChild(document.querySelector("#remotecurl"));   
-                    }}
-                }})();
-            """
-
-            script_content = jsmin(script_content, quote_chars="'\"`")
-            script.string = script_content
+            script.string = m.get_modified_content(JSMODIFIER_MAIN_SCRIPT).decode(self.encoding)
             self.document.head.insert(0, script)
 
     def _add_icon(self) -> None:

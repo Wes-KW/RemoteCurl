@@ -1,7 +1,6 @@
 """This file contain a CSS modifier class"""
 
 
-from typing import Optional
 from re import Match, sub, MULTILINE
 from remotecurl.modifier.abstract import Modifier
 from remotecurl.common.util import remove_quote
@@ -13,7 +12,7 @@ class CSSModifier(Modifier):
     css: str
 
     def __init__(
-        self, css: bytes, url: str, path: str = "", encoding: Optional[str] = None,
+        self, css: bytes, url: str, path: str, encoding: str = "utf-8",
         allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a CSS modifier"""

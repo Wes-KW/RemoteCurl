@@ -2,7 +2,7 @@ from typing import Any
 from os.path import expanduser, exists
 from json import load as json_load
 
-class _Dict(object):
+class _ObjDict(object):
 
     def __init__(self, *args, **kwargs) -> None:
         """DOCSTRING"""
@@ -21,12 +21,12 @@ class _Dict(object):
     def __setattr__(self, key: Any, value: Any, depth: int = 0) -> None:
         """DOCSTRING"""
         if isinstance(value, dict):
-            self.__setattr__(key, _Dict(value), depth + 1)
+            self.__setattr__(key, _ObjDict(value), depth + 1)
         else:
             super().__setattr__(key, value)
 
 
-class Conf(_Dict):
+class Conf(_ObjDict):
     
     def __init__(self) -> None:
         conf_path = expanduser(f"~/.config/remotecurl/remotecurl.json")

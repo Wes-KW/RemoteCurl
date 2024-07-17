@@ -1,14 +1,13 @@
-"""This file contains a module to handle request"""
-
-
 from io import BytesIO
 from http.server import BaseHTTPRequestHandler
 from certifi import where as cert_where
 from urllib.parse import urlparse
 from re import search
 from traceback import format_exc
+from remotecurl import __version__
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
+from remotecurl.modifier.js import JSModifier
 from remotecurl.common.config import Conf
 from remotecurl.common.util import check_args, get_absolute_url
 import pycurl as curl
@@ -18,26 +17,30 @@ import zstd
 
 
 __CONFIG__ = Conf()
-__SERVER_SHEME__ = __CONFIG__.server.scheme
+__SERVER_SCHEME__ = __CONFIG__.server.scheme
 __SERVER_NAME__ = __CONFIG__.server.name
 __SERVER_PORT__ = __CONFIG__.server.port
-__SERVER_PATH__ = __CONFIG__.server.path
-__ALLOW_URL_RULES__ = __CONFIG__.server.rules.url.allow
-__DENY_URL_RULES__ = __CONFIG__.server.rules.url.deny
+__SERVER_MAIN_PATH__ = "/main/"
+__SERVER_WORKER_PATH__ = "/worker/"
 __DEBUG__ = __CONFIG__.server.debug
 
 
 # derived constant
 
 if (
-    __SERVER_PORT__ == 80 and __SERVER_SHEME__ == "http" or
-    __SERVER_PORT__ == 443 and __SERVER_SHEME__ == "https"
+    __SERVER_PORT__ == 80 and __SERVER_SCHEME__ == "http" or
+    __SERVER_PORT__ == 443 and __SERVER_SCHEME__ == "https"
 ):
-    __SERVER_URL__ = f"{__SERVER_SHEME__}://{__SERVER_NAME__}/"
+    __SERVER_URL__ = f"{__SERVER_SCHEME__}://{__SERVER_NAME__}/"
 else:
-    __SERVER_URL__ = f"{__SERVER_SHEME__}://{__SERVER_NAME__}:{__SERVER_PORT__}/"
+    __SERVER_URL__ = f"{__SERVER_SCHEME__}://{__SERVER_NAME__}:{__SERVER_PORT__}/"
 
-__BASE_URL__ = f"{__SERVER_URL__}{__SERVER_PATH__[1:]}"
+__ALLOW_URL_RULES__ = __CONFIG__.server.rules.url.allow
+
+deny_url_rules = set(__CONFIG__.server.rules.url.deny)
+deny_url_rules.add(f"^https?://{__SERVER_NAME__}:{__SERVER_PORT__}/.*")
+deny_url_rules.add(f"^https?://{__SERVER_NAME__}:{__SERVER_PORT__}$")
+__DENY_URL_RULES__ = list(deny_url_rules)
 
 
 CURL_GET = 0
@@ -104,23 +107,27 @@ class RedirectHandler(BaseHTTPRequestHandler):
     TODO: also implement uploading file in POST requests
     """
 
-    def get_requested_url(self) -> str:
-        """Return the url requested by user"""
-        return self.path[len(__SERVER_PATH__):]
+    def get_requested_url(self) -> tuple[str, str, str]:
+        """Return `(requested_path, base_url, requested_url)` as a tuple"""
+        path_obj = self.path[1:].split("/", 1)
+        if len(path_obj) == 1:
+            path_obj.append("")
+
+        return f"/{path_obj[0]}", f"{__SERVER_URL__}{path_obj[0]}/", path_obj[1]
 
     def get_request_headers(self) -> tuple[dict[str, str], list[str]]:
         """Return the requested headers"""
         headers = _HeaderContainer()
         for header in self.headers.as_string().splitlines():
             headers.append(header)
-        
+
+        _, base_url, requested_url = self.get_requested_url()
         if "host" in headers:
-            requested_url = self.get_requested_url()
             requested_url_obj = urlparse(requested_url)
             headers["host"] = requested_url_obj.hostname
         
         if "referer" in headers:
-            referer_url = headers["referer"][len(__BASE_URL__):]
+            referer_url = headers["referer"][len(base_url):]
             referer_url_obj = urlparse(referer_url)
             ref_hostname = referer_url_obj.hostname
             ref_scheme = referer_url_obj.scheme
@@ -158,7 +165,21 @@ class RedirectHandler(BaseHTTPRequestHandler):
         else:
             raise Exception(f"Unable to compress content encoded with: {content_encoding}")
 
-    def do_curl(self, option: int = CURL_GET) -> None:
+    def send_version_header(self) -> None:
+        """Send version header"""
+        self.send_header('redirect-server', __version__)
+
+    def write_message(self, code: int, message: str = "", content_type: str = "text/plain") -> None:
+        """Write message to body"""
+        self.log_request(code)
+        self.send_response_only(code)
+        self.send_header("content-type", content_type)
+        self.send_version_header()
+        self.send_header('date', self.date_time_string())
+        self.end_headers()
+        self.wfile.write(message.encode())
+
+    def write_curl(self, option: int = CURL_GET) -> None:
         """
         Make a request through curl and return the responded content as bytes"
 
@@ -167,21 +188,20 @@ class RedirectHandler(BaseHTTPRequestHandler):
         TODO: add code to check CSP before loading
         """
 
-        url = self.get_requested_url()
+        requested_path, base_url, requested_url = self.get_requested_url()
 
         try:
-            if not check_args(url, __ALLOW_URL_RULES__, __DENY_URL_RULES__):
-                self.send_response_only(403)
-                self.send_header("content-type", "text/plain")
-                self.end_headers()
-                self.wfile.write(b"DENIED_ACCESS_TO_URL")
+            if not (__SERVER_MAIN_PATH__ == requested_path or __SERVER_WORKER_PATH__):
+                self.write_message(400, "BAD_REQUEST")
+            elif not check_args(requested_url, __ALLOW_URL_RULES__, __DENY_URL_RULES__):
+                self.write_message(403, "URL_ACCESS_DENIED")
             else:
                 hdict, hlist = self.get_request_headers()
                 buffer = BytesIO()
                 response_headers = _HeaderContainer()
 
                 c = curl.Curl()
-                c.setopt(curl.URL, url)
+                c.setopt(curl.URL, requested_url)
                 c.setopt(curl.HTTPHEADER, hlist)
                 c.setopt(curl.HEADERFUNCTION, response_headers.append)
                 c.setopt(curl.WRITEFUNCTION, buffer.write)
@@ -215,7 +235,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
                 # Modify content or response headers
                 if http_code == 302 and "location" in response_headers:
-                    response_headers["location"] = __BASE_URL__ + get_absolute_url(url, response_headers["location"])
+                    response_headers["location"] = base_url + get_absolute_url(requested_url, response_headers["location"])
 
                 if "content-security-policy" in response_headers:
                     response_headers.pop("content-security-policy")
@@ -242,24 +262,31 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     if matched:
                         encoding = matched.group(1)
 
-                    rewrite_required = any(x in content_type for x in ["text/html", "text/css"])
+                    rewrite_required = any(x in content_type for x in ["text/html", "text/css", "text/javascript"])
 
                     if rewrite_required:
                         # Decompress before making changes
                         if "content-encoding" in response_headers:
                             data = self.get_uncompressed_data(data, response_headers["content-encoding"])
 
-                    if "text/html" in content_type:
+                    if "text/html" in content_type and requested_path == __SERVER_MAIN_PATH__:
                         m = HTMLModifier(
-                            data, url, __SERVER_PATH__, __SERVER_URL__,
-                            encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
+                            __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                         )
                         data = m.get_modified_content()
 
-                    if "text/css" in content_type:
+                    if "text/css" in content_type and requested_path == __SERVER_MAIN_PATH__:
                         m = CSSModifier(
-                            data, url, __SERVER_PATH__, encoding,
+                            data, requested_url, __SERVER_MAIN_PATH__, encoding,
                             __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                        )
+                        data = m.get_modified_content()
+
+                    if "text/javascript" in content_type and requested_path == __SERVER_WORKER_PATH__:
+                        m = JSModifier(
+                            data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
+                            __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                         )
                         data = m.get_modified_content()
 
@@ -279,38 +306,34 @@ class RedirectHandler(BaseHTTPRequestHandler):
                 self.send_response_only(http_code)
                 for key, value in response_headers.to_dict().items():
                     self.send_header(key, value)
+
+                self.send_version_header()
                 self.end_headers()
 
                 self.wfile.write(data)
-
+            
         except Exception:
             try:
                 if __DEBUG__:
-                    self.send_response_only(200)
-                    self.send_header("content-type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(bytes(format_exc(), "utf-8"))
+                    self.write_message(200, format_exc())
                 else:
-                    self.send_response(500)
-                    self.send_header("content-type", "text/plain")
-                    self.end_headers()
-                    self.wfile.write(b"")
+                    self.write_message(500)
             except:
                 # bypass broken pip error
                 pass
 
     def do_GET(self) -> None:
         """Handle get request"""
-        self.do_curl(CURL_GET)
+        self.write_curl(CURL_GET)
 
     def do_HEAD(self) -> None:
         """Handle head request"""
-        self.do_curl(CURL_HEAD)
+        self.write_curl(CURL_HEAD)
 
     def do_POST(self) -> None:
         """Handle post request"""
-        self.do_curl(CURL_POST)
+        self.write_curl(CURL_POST)
 
     def do_OPTIONS(self) -> None:
         """Handle options request"""
-        self.do_curl(CURL_OPTIONS)
+        self.write_curl(CURL_OPTIONS)
