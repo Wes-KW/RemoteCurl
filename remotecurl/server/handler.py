@@ -167,7 +167,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
     def send_version_header(self) -> None:
         """Send version header"""
-        self.send_header('redirect-server', __version__)
+        self.send_header('redirect-server', f"RemoteCurl@{__version__}")
 
     def write_message(self, code: int, message: str = "", content_type: str = "text/plain") -> None:
         """Write message to body"""
