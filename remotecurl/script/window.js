@@ -40,21 +40,23 @@ window.Navigator.prototype.sendBeacon = function(url, data=null) {
 	this._sendBeacon(req_url, data);
 }
 
-window.ServiceWorkerContainer.prototype._register = window.ServiceWorkerContainer.prototype.register;
-window.ServiceWorkerContainer.prototype.register = function(scriptURL, options) {
-	let req_url = get_worker_requested_url(scriptURL);
-	redirect_log("ServiceWorkerContainer.register", scriptURL, req_url);
-
-	let opt_scope = "/";
-	if (typeof options.scope != "undefined") {
-		opt_scope = options.scope;
-	}
-	let req_opt_scope = get_main_requested_url(opt_scope);
-	redirect_log("ServiceWorkerContainer.register.options.scope", opt_scope, req_opt_scope);
-
-	return this._register(req_url, options).then(function(registration){
-		return registration;
-	});
+if (window.ServiceWorkerContainer) {
+    window.ServiceWorkerContainer.prototype._register = window.ServiceWorkerContainer.prototype.register;
+    window.ServiceWorkerContainer.prototype.register = function(scriptURL, options) {
+    	let req_url = get_worker_requested_url(scriptURL);
+    	redirect_log("ServiceWorkerContainer.register", scriptURL, req_url);
+    
+    	let opt_scope = "/";
+    	if (typeof options.scope != "undefined") {
+    		opt_scope = options.scope;
+    	}
+    	let req_opt_scope = get_main_requested_url(opt_scope);
+    	redirect_log("ServiceWorkerContainer.register.options.scope", opt_scope, req_opt_scope);
+    
+    	return this._register(req_url, options).then(function(registration){
+    		return registration;
+    	});
+    }
 }
 
 window.Worker = new Proxy(
