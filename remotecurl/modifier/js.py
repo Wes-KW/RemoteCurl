@@ -47,6 +47,14 @@ class JSModifier(Modifier):
         script_embedded = ""
         for script_name in script_names[script_mode]:
             script_embedded += get_script(script_name)
+
+        script_delete_script = ""
+        if script_mode == JSMODIFIER_MAIN_SCRIPT :
+            script_delete_script = f"""
+                if (document.querySelector("#remotecurl") !== null) {{
+                    document.head.removeChild(document.querySelector("#remotecurl"));   
+                }}
+            """
         
         js_allow_url_rules = self._py_regex_list_to_js(self.allow_url_rules)
         js_deny_url_rules = self._py_regex_list_to_js(self.deny_url_rules)
@@ -64,11 +72,7 @@ class JSModifier(Modifier):
 
                 {script_embedded}
 
-                if (document){{
-                    if (document.querySelector("#remotecurl") !== null) {{
-                        document.head.removeChild(document.querySelector("#remotecurl"));   
-                    }}
-                }}
+                {script_delete_script}
             }})();
         """ + self.script
 
