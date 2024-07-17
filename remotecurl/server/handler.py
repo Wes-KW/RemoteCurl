@@ -7,7 +7,7 @@ from traceback import format_exc
 from remotecurl import __version__
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
-from remotecurl.modifier.js import JSModifier
+from remotecurl.modifier.js import JSModifier, JSMODIFIER_WORKER_SCRIPT
 from remotecurl.common.config import Conf
 from remotecurl.common.util import check_args, get_absolute_url
 import pycurl as curl
@@ -288,7 +288,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
                             data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
                             __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                         )
-                        data = m.get_modified_content()
+                        data = m.get_modified_content(JSMODIFIER_WORKER_SCRIPT)
 
                     if rewrite_required:
                         # Compress after changes          
