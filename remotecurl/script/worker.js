@@ -2,7 +2,7 @@
 
 // redirect request
 if (!self._redirected) {
-	self._redirected = true
+	self._redirected = true;
 
 	if (self.XMLHttpRequest) {
 		self.XMLHttpRequest.prototype._open = self.XMLHttpRequest.prototype.open;

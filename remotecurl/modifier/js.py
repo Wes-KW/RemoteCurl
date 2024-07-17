@@ -67,7 +67,7 @@ class JSModifier(Modifier):
                 if (document.querySelector("#remotecurl") !== null) {{
                     document.head.removeChild(document.querySelector("#remotecurl"));   
                 }}
-            }}();
+            }})();
         """ + self.script
 
         self.script = jsmin(self.script, quote_chars="'\"`")
