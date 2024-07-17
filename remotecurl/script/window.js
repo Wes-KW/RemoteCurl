@@ -155,7 +155,6 @@ function overwrite_history(window) {
         let req_url = get_main_requested_url(url);
 		redirect_log("History.pushState", url, req_url);
         this._pushState(data , title, req_url);
-        $url = req_url;
     }
 
     window.History.prototype._replaceState = window.History.prototype.replaceState
@@ -163,7 +162,6 @@ function overwrite_history(window) {
         let req_url = get_main_requested_url(url);
 		redirect_log("History.replaceState", url, req_url);
         this._replaceState(data , title, req_url);
-        $url = req_url;
     }
 }
 
