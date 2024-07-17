@@ -64,8 +64,10 @@ class JSModifier(Modifier):
 
                 {script_embedded}
 
-                if (document.querySelector("#remotecurl") !== null) {{
-                    document.head.removeChild(document.querySelector("#remotecurl"));   
+                if (document){{
+                    if (document.querySelector("#remotecurl") !== null) {{
+                        document.head.removeChild(document.querySelector("#remotecurl"));   
+                    }}
                 }}
             }})();
         """ + self.script
