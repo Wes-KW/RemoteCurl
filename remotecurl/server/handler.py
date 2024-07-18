@@ -7,9 +7,12 @@ from traceback import format_exc
 from remotecurl import __version__
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
-from remotecurl.modifier.js import JSModifier, JSMODIFIER_WORKER_SCRIPT
+from remotecurl.modifier.js import JSModifier
+from remotecurl.modifier.js import JSMODIFIER_WORKER_SCRIPT
 from remotecurl.common.config import Conf
-from remotecurl.common.util import check_args, get_absolute_url
+from remotecurl.common.util import check_args
+from remotecurl.common.util import get_absolute_url
+from remotecurl.common.util import can_be_decoded
 import pycurl as curl
 import zlib
 import brotli
@@ -113,7 +116,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
         if len(path_obj) == 1:
             path_obj.append("")
 
-        return f"/{path_obj[0]}", f"{__SERVER_URL__}{path_obj[0]}/", path_obj[1]
+        return f"/{path_obj[0]}/", f"{__SERVER_URL__}{path_obj[0]}/", path_obj[1]
 
     def get_request_headers(self) -> tuple[dict[str, str], list[str]]:
         """Return the requested headers"""
@@ -191,7 +194,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
         requested_path, base_url, requested_url = self.get_requested_url()
 
         try:
-            if not (__SERVER_MAIN_PATH__ == requested_path or __SERVER_WORKER_PATH__):
+            if not (__SERVER_MAIN_PATH__ == requested_path or __SERVER_WORKER_PATH__ == requested_path):
                 self.write_message(400, "BAD_REQUEST")
             elif not check_args(requested_url, __ALLOW_URL_RULES__, __DENY_URL_RULES__):
                 self.write_message(403, "URL_ACCESS_DENIED")
@@ -264,33 +267,31 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
                     rewrite_required = any(x in content_type for x in ["text/html", "text/css", "text/javascript"])
 
-                    if rewrite_required:
-                        # Decompress before making changes
+                    if rewrite_required and can_be_decoded(data, encoding):
                         if "content-encoding" in response_headers:
                             data = self.get_uncompressed_data(data, response_headers["content-encoding"])
+                        
+                        if "text/html" in content_type and requested_path == __SERVER_MAIN_PATH__:
+                            m = HTMLModifier(
+                                data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
+                                __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            )
+                            data = m.get_modified_content()
+    
+                        if "text/css" in content_type and requested_path == __SERVER_MAIN_PATH__:
+                            m = CSSModifier(
+                                data, requested_url, __SERVER_MAIN_PATH__, encoding,
+                                __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            )
+                            data = m.get_modified_content()
+    
+                        if "text/javascript" in content_type and requested_path == __SERVER_WORKER_PATH__:
+                            m = JSModifier(
+                                data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
+                                __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            )
+                            data = m.get_modified_content(JSMODIFIER_WORKER_SCRIPT)
 
-                    if "text/html" in content_type and requested_path == __SERVER_MAIN_PATH__:
-                        m = HTMLModifier(
-                            data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
-                            __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                        )
-                        data = m.get_modified_content()
-
-                    if "text/css" in content_type and requested_path == __SERVER_MAIN_PATH__:
-                        m = CSSModifier(
-                            data, requested_url, __SERVER_MAIN_PATH__, encoding,
-                            __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                        )
-                        data = m.get_modified_content()
-
-                    if "text/javascript" in content_type and requested_path == __SERVER_WORKER_PATH__:
-                        m = JSModifier(
-                            data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
-                            __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                        )
-                        data = m.get_modified_content(JSMODIFIER_WORKER_SCRIPT)
-
-                    if rewrite_required:
                         # Compress after changes          
                         if "content-encoding" in response_headers:
                             data = self.get_compressed_data(data, response_headers["content-encoding"])
