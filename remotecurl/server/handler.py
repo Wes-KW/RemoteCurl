@@ -307,6 +307,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
                         response_headers.pop("transfer-encoding")
                         response_headers["content-length"] = str(len(data))
 
+                self.log_request(http_code)
                 self.send_response_only(http_code)
                 for key, value in response_headers.to_dict().items():
                     self.send_header(key, value)
