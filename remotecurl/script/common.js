@@ -21,6 +21,10 @@ function check_url(url) {
 }
 
 function get_requested_url(relative_url, prefix_url) {	
+	if (relative_url === null) {
+		return null;
+	}
+
 	relative_url = relative_url.toString();
 
 	if (relative_url === "#") {
