@@ -3,15 +3,13 @@
 function check_url(url) {
 	let filter_url = "";
 
-	for (let i = 0; i < $allow_url.length; i++) {
-		const pattern = $allow_url[i];
+	for (let pattern of $allow_url) {
 		if (pattern.test(url) !== false) {
 			filter_url = url;
 		}
 	}
 
-	for (let i = 0; i < $deny_url.length; i++) {
-		const pattern = $deny_url[i];
+	for (let pattern of $allow_url) {
 		if (pattern.test(url) !== false) {
 			filter_url = "";
 		}
