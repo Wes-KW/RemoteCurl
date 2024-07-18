@@ -20,7 +20,11 @@ function check_url(url) {
 	return filter_url !== "";
 }
 
-function get_requested_url(relative_url, prefix_url) {	
+function get_requested_url(relative_url, prefix_url) {
+	if (typeof relative_url === "undefined") {
+		return "";
+	}
+
 	if (relative_url === null) {
 		return null;
 	}
