@@ -168,16 +168,16 @@ function overwrite_history(window) {
 
 overwrite_history(window);
 
-HTMLElement.prototype._appendChild = HTMLElement.prototype.appendChild;
+let _appendChild = HTMLElement.prototype.appendChild;
 HTMLElement.prototype.appendChild = function(node) {
     if (node instanceof HTMLIFrameElement && (
         node.src === "" || node.src === "about:blank"
     )) {
-        this._appendChild(node);
+        _appendChild.call(this, node);
         overwrite_history(node.contentWindow);
         return node;
     } else {
-        return this._appendChild(node);
+        return _appendChild.call(this, node);
     }
 }
 
