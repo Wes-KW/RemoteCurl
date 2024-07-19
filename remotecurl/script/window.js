@@ -1,14 +1,14 @@
 // window.js
 
 // redirect request
-window.XMLHttpRequest.prototype._open = window.XMLHttpRequest.prototype.open;
-window.XMLHttpRequest.prototype.open = function(method, url, async=true) {
+let _open = window.XMLHttpRequest.prototype.open;
+window.XMLHttpRequest.prototype.open = function(method, url, async) {
 	let req_url = get_main_requested_url(url);
 	redirect_log("XMLHttpRequest", url, req_url);
-	this._open(method, req_url, async);
+	_open.call(this, method, req_url, async);
 }
 
-window._fetch = window.fetch;
+let _fetch = window.fetch;
 window.fetch = function(url, options) {
 	let req_url = url;
     if (typeof url == "string") {
@@ -17,7 +17,7 @@ window.fetch = function(url, options) {
     } else {
 		redirect_log("Fetch", "<Request Object>", "<new Request Object>");
 	}
-    return this._fetch(req_url, options).then(function(response) {
+    return _fetch.call(this, req_url, options).then(function(response) {
         return response;
     });
 }
@@ -33,15 +33,15 @@ window.Request = new Proxy(
 	}
 );
 
-window.Navigator.prototype._sendBeacon = window.Navigator.prototype.sendBeacon;
+let _sendBeacon = window.Navigator.prototype.sendBeacon;
 window.Navigator.prototype.sendBeacon = function(url, data=null) {
 	let req_url = get_main_requested_url(url);
 	redirect_log("navigator.sendBeacon", url, req_url);
-	this._sendBeacon(req_url, data);
+	return _sendBeacon.call(this, req_url, data);
 }
 
 if (window.ServiceWorkerContainer) {
-    window.ServiceWorkerContainer.prototype._register = window.ServiceWorkerContainer.prototype.register;
+    let _register = window.ServiceWorkerContainer.prototype.register;
     window.ServiceWorkerContainer.prototype.register = function(scriptURL, options) {
     	let req_url = get_worker_requested_url(scriptURL);
     	redirect_log("ServiceWorkerContainer.register", scriptURL, req_url);
@@ -53,7 +53,7 @@ if (window.ServiceWorkerContainer) {
     	let req_opt_scope = get_main_requested_url(opt_scope);
     	redirect_log("ServiceWorkerContainer.register.options.scope", opt_scope, req_opt_scope);
     
-    	return this._register(req_url, options).then(function(registration){
+    	return _register.call(this, req_url, options).then(function(registration){
     		return registration;
     	});
     }
@@ -81,7 +81,6 @@ window.SharedWorker = new Proxy(
 	}
 );
 
-// redirect navigation
 const dom_mappings = [
 	{"dom": HTMLImageElement, "tag": "img", "attr": "src"},
     {"dom": HTMLImageElement, "tag": "img", "attr": "srcset"},
