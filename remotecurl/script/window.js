@@ -111,9 +111,6 @@ for (let dom_mapping of dom_mappings) {
         dom.prototype, attr, {
             enumerable: true,
             configurable: true,
-            get: function() {
-                return this.getAttribute(attr);
-            },
             set: function(value) {
                 let prop = dom.name + "." + attr;
                 let new_value = get_main_requested_url(value);
