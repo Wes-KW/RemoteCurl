@@ -42,16 +42,21 @@ window.Navigator.prototype.sendBeacon = function(url, data=null) {
 
 if (window.ServiceWorkerContainer) {
     let _register = window.ServiceWorkerContainer.prototype.register;
-    window.ServiceWorkerContainer.prototype.register = function(scriptURL, options) {
-    	let req_url = get_worker_requested_url(scriptURL);
-    	redirect_log("ServiceWorkerContainer.register", scriptURL, req_url);
+    window.ServiceWorkerContainer.prototype.register = function(url, options) {
+    	let req_url = get_worker_requested_url(url);
+        redirect_log("ServiceWorkerContainer.register", url, req_url);
     
-    	let opt_scope = "/";
-    	if (typeof options.scope != "undefined") {
-    		opt_scope = options.scope;
-    	}
-    	let req_opt_scope = get_main_requested_url(opt_scope);
-    	redirect_log("ServiceWorkerContainer.register.options.scope", opt_scope, req_opt_scope);
+        let opt_default_scope = "/";
+    	if (typeof options === "object") {
+            if ("scope" in options) {
+                opt_scope = options.scope;
+            }
+        } else {
+            options = {scope: opt_default_scope};
+            opt_scope = options;
+        }
+        let opt_req_scope = get_main_requested_url(opt_scope);
+        options.scope = opt_req_scope;
     
     	return _register.call(this, req_url, options).then(function(registration){
     		return registration;
@@ -151,18 +156,18 @@ observer.observe(document, {childList: true, subtree: true});
 
 // overwrite history
 function overwrite_history(window) {
-    window.History.prototype._pushState = window.History.prototype.pushState
+    let _pushState = window.History.prototype.pushState
     window.History.prototype.pushState = function(data, title, url) {
         let req_url = get_main_requested_url(url);
 		redirect_log("History.pushState", url, req_url);
-        this._pushState(data , title, req_url);
+        _pushState.call(this, data , title, req_url);
     }
 
-    window.History.prototype._replaceState = window.History.prototype.replaceState
+    let _replaceState = window.History.prototype.replaceState
     window.History.prototype.replaceState = function(data , title, url) {
         let req_url = get_main_requested_url(url);
 		redirect_log("History.replaceState", url, req_url);
-        this._replaceState(data , title, req_url);
+        _replaceState.call(this, data , title, req_url);
     }
 }
 
@@ -180,4 +185,3 @@ HTMLElement.prototype.appendChild = function(node) {
         return _appendChild.call(this, node);
     }
 }
-
