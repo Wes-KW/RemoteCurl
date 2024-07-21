@@ -41,8 +41,12 @@ else:
 __ALLOW_URL_RULES__ = __CONFIG__.server.rules.url.allow
 
 deny_url_rules = set(__CONFIG__.server.rules.url.deny)
-deny_url_rules.add(f"^https?://{__SERVER_NAME__}:{__SERVER_PORT__}/.*")
-deny_url_rules.add(f"^https?://{__SERVER_NAME__}:{__SERVER_PORT__}$")
+deny_url_rules.add(f"^https?://{__SERVER_NAME__}:?[0-9]*/.*")
+deny_url_rules.add(f"^https?://{__SERVER_NAME__}:?[0-9]*$")
+deny_url_rules.add(f"^https?://localhost:?[0-9]*/.*")
+deny_url_rules.add(f"^https?://localhost:?[0-9]*$")
+deny_url_rules.add(f"^https?://127.0.0.1:?[0-9]*/.*")
+deny_url_rules.add(f"^https?://127.0.0.1:?[0-0]*$")
 __DENY_URL_RULES__ = list(deny_url_rules)
 
 

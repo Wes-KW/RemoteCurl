@@ -6,12 +6,7 @@
 		"rules": {
 			"url":{
 				"allow": ["^https?://.+"],
-				"deny": [
-					"^https?://localhost/.*",
-					"^https?://localhost$",
-					"^https?://127.0.0.1/.*",
-					"^https?://127.0.0.1$"
-				]
+				"deny": []
 			}
 		},
 		"debug": true
