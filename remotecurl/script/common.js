@@ -9,7 +9,7 @@ function check_url(url) {
 		}
 	}
 
-	for (let pattern of $allow_url) {
+	for (let pattern of $deny_url) {
 		if (pattern.test(url) !== false) {
 			filter_url = "";
 		}
