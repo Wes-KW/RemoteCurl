@@ -41,8 +41,8 @@ class JSModifier(Modifier):
             - 0 <= script_mode <= 1
         """
         script_names = [
-            ["common", "window"],
-            ["common", "worker"]
+            ["window.min"],
+            ["worker.min"]
         ]
         script_embedded = ""
         for script_name in script_names[script_mode]:
