@@ -1,4 +1,10 @@
 // window.js
+function DOMMapping (target, css_selector, attr, func) {
+    this.target = target;
+    this.css_selector = css_selector;
+    this.attr = attr;
+    this.func = func;
+}
 
 // redirect request
 let _open = window.XMLHttpRequest.prototype.open;
@@ -86,67 +92,98 @@ window.SharedWorker = new Proxy(
 	}
 );
 
+const set_link = function(prop, link) {
+    let new_link = get_main_requested_url(link);
+    redirect_log(prop, link, new_link);
+    return new_link;
+}
+
+const set_srcset = function(prop, srcset) {
+    let replacer = function (match, p1, offset, string) {
+        if (match.endsWith('x') && /^\d+$/.test(parseInt(match.substring(0, match.length - 1)))) {
+            return match;
+        } else {
+            let req_url = get_main_requested_url(match);
+            redirect_log(prop, match, req_url);
+            return req_url;
+        }
+    }
+    let new_srcset = srcset.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
+    return new_srcset;
+}
+
+const set_style = function(prop, style) {
+    let remote_quote = function(raw) {
+        let front = "";
+        let back = "";
+        if (raw.startsWith("\"") || raw.startsWith("'")) {
+            front = raw.substring(0, 1);
+            raw = raw.substring(1);
+        }
+        if (raw.endsWith("\"") || raw.endsWith("'")) {
+            back = raw.substring(raw.length - 1, raw.length);
+            raw = raw.substring(0, raw.length - 1);
+        }
+        return [raw, front, back];
+    }
+
+    let replacer = function(match, p1, offset, string) {
+        let args = remote_quote(p1);
+        let req_url = get_main_requested_url(args[0]);
+        redirect_log(prop, args[0], req_url);
+        return "url(" + args[1] + req_url + args[2] + ")";
+    }
+
+    let new_style = style.replace(/url\(([^)]+)\)/gi, replacer);
+    return new_style;
+}
+
 const dom_mappings = [
-	{"dom": HTMLImageElement, "tag": "img", "attr": "src"},
-    {"dom": HTMLImageElement, "tag": "img", "attr": "srcset"},
-    {"dom": HTMLScriptElement, "tag": "script", "attr": "src"},
-	{"dom": HTMLEmbedElement, "tag": "embed", "attr": "src"},
-	{"dom": HTMLVideoElement, "tag": "video", "attr": "src"},
-	{"dom": HTMLAudioElement, "tag": "audio", "attr": "src"},
-	{"dom": HTMLSourceElement, "tag": "source", "attr": "src"},
-    {"dom": HTMLSourceElement, "tag": "source", "attr": "srcset"},
-	{"dom": HTMLTrackElement, "tag": "track", "attr": "src"},
-	{"dom": HTMLIFrameElement, "tag": "iframe", "attr": "src"},
-	{"dom": HTMLLinkElement, "tag": "link", "attr": "href"},
-	{"dom": HTMLAnchorElement, "tag": "a", "attr": "href"},
-	{"dom": HTMLAreaElement, "tag": "area", "attr": "href"},
-	{"dom": HTMLFormElement, "tag": "form", "attr": "action"}
+    new DOMMapping(window.HTMLImageElement, "img[src]", "src", set_link),
+    new DOMMapping(window.HTMLImageElement, "img[srcset]", "srcset", set_srcset),
+    new DOMMapping(window.HTMLScriptElement, "script[src]", "src", set_link),
+    new DOMMapping(window.HTMLEmbedElement, "embed[src]", "src", set_link),
+    new DOMMapping(window.HTMLMediaElement, "audio[src], video[src]", "src", set_link),
+    new DOMMapping(window.HTMLSourceElement, "source[src]", "src", set_link),
+    new DOMMapping(window.HTMLSourceElement, "source[srcset]", "srcset", set_srcset),
+    new DOMMapping(window.HTMLTrackElement, "track[src]", "src", set_link),
+    new DOMMapping(window.HTMLIFrameElement, "iframe[src]", "src", set_link),
+    new DOMMapping(window.HTMLLinkElement, "link[href]", "href", set_link),
+    new DOMMapping(window.HTMLAnchorElement, "a[href]", "href", set_link),
+    new DOMMapping(window.HTMLAreaElement, "area[href]", "href", set_link),
+    new DOMMapping(window.HTMLFormElement, "form[action]", "action", set_link),
 ];
 
 for (let dom_mapping of dom_mappings) {
-    let dom = dom_mapping["dom"];
-    let attr = dom_mapping["attr"];
-
-    Object.defineProperty(
-        dom.prototype, attr, {
-            enumerable: true,
-            configurable: true,
-            get: function() {
-                return this.getAttribute(attr);
-            },
-            set: function(value) {
-                let prop = dom.name + "." + attr;
-                let new_value = get_main_requested_url(value);
-                if (attr === "srcset"){
-                    let replacer = function (match, p1, offset, string) {
-                        if (match.endsWith('x') && /^\d+$/.test(parseInt(match.substring(0, match.length - 1)))) {
-                            return match;
-                        } else {
-                            return get_main_requested_url(match);
-                        }
-                    }
-                    new_value = value.replace(/(data:image\/[^\s,]+,[^\s,]*|[^,\s]+)/gi, replacer);
-                }
-            
-                redirect_log(prop, value, new_value);
-                if (this.getAttribute(attr) !== new_value) {
-                    this.setAttribute("_" + attr, value);
-                    this.setAttribute(attr, new_value);
-                }
+    let target = dom_mapping.target;
+    let attr = dom_mapping.attr;
+    let func = dom_mapping.func;
+    window.Object.defineProperty(target.prototype, attr, {
+        enumerable: true,
+        configurable: true,
+        get: function() {
+            return this.getAttribute(attr);
+        },
+        set: function(value) {
+            let old_value = this.getAttribute(attr);
+            let new_value = func(`${target.name}.${attr}`, value);
+            if (new_value !== old_value) {
+                return this.setAttribute(attr, new_value)
+            } else {
+                return old_value;
             }
         }
-    );
+    });
 }
 
-function observer_callback (mutations) {
+const observer_callback = function () {
     // reset src and href of any new element
     for (let dom_mapping of dom_mappings) {
-        let node_name = dom_mapping["tag"];
-        let attr = dom_mapping["attr"];
-        let doms = document.querySelectorAll(node_name + "[" + attr + "]");
-        for (let j = 0; j < doms.length; j++) {
-            const dom = doms[j];
-            dom[attr] = dom.getAttribute(attr);
+        let css_selector = dom_mapping.css_selector;
+        let attr = dom_mapping.attr;
+        let doms = document.querySelectorAll(css_selector);
+        for (let dom of doms) {
+            dom[attr] = dom[attr];
         }
     }
 }
@@ -175,13 +212,29 @@ overwrite_history(window);
 
 let _appendChild = HTMLElement.prototype.appendChild;
 HTMLElement.prototype.appendChild = function(node) {
-    if (node instanceof HTMLIFrameElement && (
-        node.src === "" || node.src === "about:blank"
-    )) {
+    if (node instanceof HTMLIFrameElement &&
+        (node.src === "" || node.src === "about:blank") &&
+        document.body.contains(this)
+    ) {
         _appendChild.call(this, node);
         overwrite_history(node.contentWindow);
         return node;
+    } else if (this instanceof HTMLStyleElement && node instanceof Text) {
+        let new_value = set_style(`HTMLStyleElement.innerText`, node.textContent);
+        let text_node = document.createTextNode(new_value);
+        _appendChild.call(this, text_node);
     } else {
         return _appendChild.call(this, node);
+    }
+}
+
+let _append = HTMLElement.prototype.append;
+HTMLElement.prototype.append = function(...nodes) {
+    for (let node of nodes) {
+        if (node instanceof HTMLElement) {
+            this.appendChild(node);
+        } else {
+            _append.call(this, node);
+        }
     }
 }
