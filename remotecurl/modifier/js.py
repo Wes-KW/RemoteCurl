@@ -33,6 +33,8 @@ class JSModifier(Modifier):
     def get_modified_content(self, script_mode: int) -> bytes:
         """
         Add script to the required javascript
+
+        TODO: rewrite `location` object in `script_embeded`
         
         - use `script_mode = JSMODIFIER_MAIN_SCRIPT` for writing script into window
         - use `script_mode = JSMODIFIER_WORKER_SCRIPT` for writing script into worker
@@ -44,9 +46,9 @@ class JSModifier(Modifier):
             ["common", "window"],
             ["common", "worker"]
         ]
-        script_embedded = ""
+        script_embeded = ""
         for script_name in script_names[script_mode]:
-            script_embedded += get_script(script_name)
+            script_embeded += get_script(script_name)
 
         script_delete_script = ""
         if script_mode == JSMODIFIER_MAIN_SCRIPT :
@@ -70,7 +72,7 @@ class JSModifier(Modifier):
                 const $deny_url = {js_deny_url_rules};
                 var $url = "{self.url}";
 
-                {script_embedded}
+                {script_embeded}
 
                 {script_delete_script}
             }})();
