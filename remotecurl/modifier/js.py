@@ -80,4 +80,3 @@ class JSModifier(Modifier):
 
         self.script = jsmin(self.script, quote_chars="'\"`")
         return self.script.encode(self.encoding)
-    
