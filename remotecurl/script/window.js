@@ -1,9 +1,11 @@
 // window.js
-function DOMMapping (target, css_selector, attr, func) {
-    this.target = target;
-    this.css_selector = css_selector;
-    this.attr = attr;
-    this.func = func;
+class DOMMapping {
+    constructor(target, css_selector, attr, func) {
+        this.target = target;
+        this.css_selector = css_selector;
+        this.attr = attr;
+        this.func = func;
+    }
 }
 
 // redirect request
