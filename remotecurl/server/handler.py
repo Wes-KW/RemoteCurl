@@ -237,7 +237,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
                 data = buffer.getvalue()
 
                 # Modify content or response headers
-                if http_code == 302 and "location" in response_headers:
+                if (http_code == 302 or http_code == 301) and "location" in response_headers:
                     response_headers["location"] = base_url + get_absolute_url(requested_url, response_headers["location"])
 
                 if "content-security-policy" in response_headers:
