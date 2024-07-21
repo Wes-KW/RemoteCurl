@@ -100,15 +100,16 @@ class HTMLModifier(Modifier):
     def _modify_html_css(self) -> None:
         """DOCSTRING"""
         for with_obj in self.document.select("style"):
-            style = with_obj.string.encode(self.encoding)
-            style_modifier = CSSModifier(
-                style, self.url,
-                self.path,
-                self.encoding,
-                self.allow_url_rules,
-                self.deny_url_rules
-            )
-            with_obj.string = style_modifier.get_modified_content().decode(self.encoding)
+            if with_obj.string is not None:
+                style = with_obj.string.encode(self.encoding)
+                style_modifier = CSSModifier(
+                    style, self.url,
+                    self.path,
+                    self.encoding,
+                    self.allow_url_rules,
+                    self.deny_url_rules
+                )
+                with_obj.string = style_modifier.get_modified_content().decode(self.encoding)
 
     def get_modified_content(self) -> bytes:
         """Return a tuple of html content bytes and encoding"""
