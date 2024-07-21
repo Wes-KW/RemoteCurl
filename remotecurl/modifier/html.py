@@ -69,7 +69,6 @@ class HTMLModifier(Modifier):
             attribute = with_objs["attribute"]
             for with_obj in self.document.select(selector):
                 value = with_obj.get(attribute)
-                with_obj["_" + attribute] = value
                 with_obj[attribute] = self._modify_link(value)
 
     def _modify_html_css_background(self) -> None:
@@ -96,9 +95,7 @@ class HTMLModifier(Modifier):
         """DOCSTRING"""
         for with_obj in self.document.select("*[srcset]"):
             srcset = with_obj.get("srcset")
-            new_srcset = sub(r"(data:image/[^\s,]+,[^\s,]*|[^,\s]+)", self._get_new_url_string, srcset)
-            with_obj["_srcset"] = srcset
-            with_obj["srcset"] = new_srcset
+            with_obj["srcset"] = sub(r"(data:image/[^\s,]+,[^\s,]*|[^,\s]+)", self._get_new_url_string, srcset)
 
     def _modify_html_css(self) -> None:
         """DOCSTRING"""
