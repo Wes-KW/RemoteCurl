@@ -12,11 +12,12 @@ from remotecurl.modifier.js import JSMODIFIER_WORKER_SCRIPT
 from remotecurl.common.config import Conf
 from remotecurl.common.util import check_args
 from remotecurl.common.util import get_absolute_url
-from remotecurl.common.util import can_be_decoded
+from remotecurl.common.util import remove_quote
 import pycurl as curl
 import zlib
 import brotli
 import zstd
+import mimetypes
 
 
 __CONFIG__ = Conf()
