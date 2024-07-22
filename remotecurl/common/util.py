@@ -76,11 +76,3 @@ def remove_quote(raw: str) -> str:
         raw = raw[:-1]
 
     return raw
-
-def can_be_decoded(data: bytes, encoding: str) -> bool:
-    """DOCSTRING"""
-    try:
-        data.decode(encoding)
-        return True
-    except UnicodeDecodeError:
-        return False
