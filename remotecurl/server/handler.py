@@ -269,36 +269,40 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     if matched:
                         encoding = matched.group(1)
 
-                    rewrite_required = any(x in content_type for x in ["text/html", "text/css", "text/javascript"])
+                    rewrite_required_content_type = any(x in content_type for x in ["text/html", "text/css", "text/javascript"])
+                    rewrite_required_content_disposition = (
+                        "content-disposition" in response_headers and 
+                        "attachment" not in response_headers["content-disposition"] or
+                        "content-disposition" not in response_headers
+                    )
+                    rewrite_required = rewrite_required_content_type and rewrite_required_content_disposition
 
                     if rewrite_required:
                         # Decompress before making changes
                         if "content-encoding" in response_headers:
                             data = self.get_uncompressed_data(data, response_headers["content-encoding"])
 
-                    if "text/html" in content_type and requested_path == __SERVER_MAIN_PATH__:
-                        if can_be_decoded(data, encoding):
+                        if "text/html" in content_type and requested_path == __SERVER_MAIN_PATH__:
                             m = HTMLModifier(
                                 data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
                                 __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
                             )
                             data = m.get_modified_content()
-    
-                    if "text/css" in content_type and requested_path == __SERVER_MAIN_PATH__:
-                        m = CSSModifier(
-                            data, requested_url, __SERVER_MAIN_PATH__, encoding,
-                            __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                        )
-                        data = m.get_modified_content()
-    
-                    if "text/javascript" in content_type and requested_path == __SERVER_WORKER_PATH__:
-                        m = JSModifier(
-                            data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
-                            __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
-                        )
-                        data = m.get_modified_content(JSMODIFIER_WORKER_SCRIPT)
 
-                    if rewrite_required:
+                        if "text/css" in content_type and requested_path == __SERVER_MAIN_PATH__:
+                            m = CSSModifier(
+                                data, requested_url, __SERVER_MAIN_PATH__, encoding,
+                                __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            )
+                            data = m.get_modified_content()
+
+                        if "text/javascript" in content_type and requested_path == __SERVER_WORKER_PATH__:
+                            m = JSModifier(
+                                data, requested_url, __SERVER_MAIN_PATH__, __SERVER_WORKER_PATH__,
+                                __SERVER_URL__, encoding, __ALLOW_URL_RULES__, __DENY_URL_RULES__
+                            )
+                            data = m.get_modified_content(JSMODIFIER_WORKER_SCRIPT)
+
                         # Compress after changes          
                         if "content-encoding" in response_headers:
                             data = self.get_compressed_data(data, response_headers["content-encoding"])
