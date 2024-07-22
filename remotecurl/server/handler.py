@@ -176,6 +176,37 @@ class RedirectHandler(BaseHTTPRequestHandler):
         """Send version header"""
         self.send_header('redirect-server', f"RemoteCurl {__version__}")
 
+    def check_rewrite_required(self, content_type: str, content_disposition: str) -> bool:
+        """Helper method of write_curl to check if content needs to be rewritten"""
+        rewrite_required_content_type = ["text/html", "text/css", "text/javascript"]
+        file_content_type = ""
+
+        for type in rewrite_required_content_type:
+            if type in content_type:
+                file_content_type = type
+                break
+
+        if content_disposition == "" and file_content_type != "":
+            return True
+
+        obj = content_disposition.split(";")
+        format = obj[0].lower().strip()
+        if format == "inline" and file_content_type != "":
+            return True
+
+        if format == "attachment":
+            if len(obj) > 1:
+                filename_key_value = obj[1].split("=", 1)
+                if len(filename_key_value) < 1:
+                    return False
+
+                filename = remove_quote(filename_key_value[1].strip())
+                file_content_type, _ = mimetypes.guess_type(filename)
+
+                return file_content_type in rewrite_required_content_type
+
+        return False
+
     def write_message(self, code: int, message: str = "", content_type: str = "text/plain") -> None:
         """Write message to body"""
         self.log_request(code)
@@ -269,13 +300,11 @@ class RedirectHandler(BaseHTTPRequestHandler):
                     if matched:
                         encoding = matched.group(1)
 
-                    rewrite_required_content_type = any(x in content_type for x in ["text/html", "text/css", "text/javascript"])
-                    rewrite_required_content_disposition = (
-                        "content-disposition" in response_headers and 
-                        "attachment" not in response_headers["content-disposition"] or
-                        "content-disposition" not in response_headers
-                    )
-                    rewrite_required = rewrite_required_content_type and rewrite_required_content_disposition
+                    content_disposition = ""
+                    if "content-disposition" in response_headers:
+                        content_disposition = response_headers["content-disposition"]
+
+                    rewrite_required = self.check_rewrite_required(content_type, content_disposition)
 
                     if rewrite_required:
                         # Decompress before making changes
