@@ -36,4 +36,4 @@ class CSSModifier(Modifier):
     def get_modified_content(self) -> bytes:
         """Return a tuple of css content bytes and encoding"""
         self._modify_css()
-        return bytes(self.css, self.encoding)
+        return self.css.encode(self.encoding)
