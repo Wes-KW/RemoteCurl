@@ -22,7 +22,7 @@ class HTMLModifier(Modifier):
 
     def __init__(
         self, html: bytes, url: str, main_path: str, worker_path: str, server_url: str,
-        encoding: str = "utf-8",allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
+        encoding: str = "utf-8", allow_url_rules: list[str] = ["^(.*)$"], deny_url_rules: list[str] = []
     ) -> None:
         """Initialize a HTML modifier"""
         self.worker_path = worker_path
