@@ -1,11 +1,8 @@
 // window.js
-class DOMMapping {
-    constructor(target, css_selector, attr, func) {
-        this.target = target;
-        this.css_selector = css_selector;
-        this.attr = attr;
-        this.func = func;
-    }
+function DOMMapping (target, attr, func) {
+    window.target = target;
+    window.attr = attr;
+    window.func = func;
 }
 
 // redirect request
@@ -141,19 +138,19 @@ const set_style = function(prop, style) {
 }
 
 const dom_mappings = [
-    new DOMMapping(window.HTMLImageElement, "img[src]", "src", set_link),
-    new DOMMapping(window.HTMLImageElement, "img[srcset]", "srcset", set_srcset),
-    new DOMMapping(window.HTMLScriptElement, "script[src]", "src", set_link),
-    new DOMMapping(window.HTMLEmbedElement, "embed[src]", "src", set_link),
-    new DOMMapping(window.HTMLMediaElement, "audio[src], video[src]", "src", set_link),
-    new DOMMapping(window.HTMLSourceElement, "source[src]", "src", set_link),
-    new DOMMapping(window.HTMLSourceElement, "source[srcset]", "srcset", set_srcset),
-    new DOMMapping(window.HTMLTrackElement, "track[src]", "src", set_link),
-    new DOMMapping(window.HTMLIFrameElement, "iframe[src]", "src", set_link),
-    new DOMMapping(window.HTMLLinkElement, "link[href]", "href", set_link),
-    new DOMMapping(window.HTMLAnchorElement, "a[href]", "href", set_link),
-    new DOMMapping(window.HTMLAreaElement, "area[href]", "href", set_link),
-    new DOMMapping(window.HTMLFormElement, "form[action]", "action", set_link),
+    new DOMMapping(window.HTMLImageElement, "src", set_link),
+    new DOMMapping(window.HTMLImageElement, "srcset", set_srcset),
+    new DOMMapping(window.HTMLScriptElement, "src", set_link),
+    new DOMMapping(window.HTMLEmbedElement, "src", set_link),
+    new DOMMapping(window.HTMLMediaElement, "src", set_link),
+    new DOMMapping(window.HTMLSourceElement, "src", set_link),
+    new DOMMapping(window.HTMLSourceElement, "srcset", set_srcset),
+    new DOMMapping(window.HTMLTrackElement, "src", set_link),
+    new DOMMapping(window.HTMLIFrameElement, "src", set_link),
+    new DOMMapping(window.HTMLLinkElement, "href", set_link),
+    new DOMMapping(window.HTMLAnchorElement, "href", set_link),
+    new DOMMapping(window.HTMLAreaElement, "href", set_link),
+    new DOMMapping(window.HTMLFormElement, "action", set_link),
 ];
 
 for (let dom_mapping of dom_mappings) {
@@ -178,19 +175,27 @@ for (let dom_mapping of dom_mappings) {
     });
 }
 
-const observer_callback = function () {
-    // reset src and href of any new element
-    for (let dom_mapping of dom_mappings) {
-        let css_selector = dom_mapping.css_selector;
-        let attr = dom_mapping.attr;
-        let doms = document.querySelectorAll(css_selector);
-        for (let dom of doms) {
-            dom[attr] = dom[attr];
+const observer_callback = function (mutations) {
+    let nodes = [];
+    for (let mutation of mutations) {
+        for (let node of mutation.addedNodes) {
+            nodes.push(node);
+        }
+    }
+
+    for (let node of nodes) {
+        for (let dom_mapping of dom_mappings) {
+            let target = dom_mapping.target;
+            let attr = dom_mapping.attr;
+            if (node instanceof target && node.hasAttribute && node.hasAttribute(attr)){
+                node[attr] = node[attr];
+                break;
+            }
         }
     }
 }
 
-const observer = new MutationObserver(observer_callback);
+const observer = new window.MutationObserver(observer_callback);
 observer.observe(document, {childList: true, subtree: true});
 
 // overwrite history
