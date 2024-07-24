@@ -4,7 +4,6 @@ from certifi import where as cert_where
 from urllib.parse import urlparse
 from re import search
 from traceback import format_exc
-from remotecurl import __version__
 from remotecurl.modifier.html import HTMLModifier
 from remotecurl.modifier.css import CSSModifier
 from remotecurl.modifier.js import JSModifier
@@ -175,7 +174,7 @@ class RedirectHandler(BaseHTTPRequestHandler):
 
     def send_version_header(self) -> None:
         """Send version header"""
-        self.send_header('redirect-server', f"RemoteCurl {__version__}")
+        self.send_header('redirect-server', f"RemoteCurl")
 
     def check_rewrite_required(self, content_type: str, content_disposition: str) -> bool:
         """Helper method of write_curl to check if content needs to be rewritten"""
