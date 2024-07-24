@@ -30,14 +30,14 @@ class JSModifier(Modifier):
         js_regex_list = [f"/{str.replace(rule, '/', '\\/')}/i" for rule in regex_list]
         return f"[{", ".join(js_regex_list)}]"
 
-    def get_modified_content(self, script_mode: int) -> bytes:
+    def get_modified_content(self, mode: int) -> bytes:
         """
         Add script to the required javascript
 
         TODO: rewrite `location` object in `script_embeded`
         
-        - use `script_mode = JSMODIFIER_MAIN_SCRIPT` for writing script into window
-        - use `script_mode = JSMODIFIER_WORKER_SCRIPT` for writing script into worker
+        - use `mode = JSMODIFIER_MAIN_SCRIPT` for writing script into window
+        - use `mode = JSMODIFIER_WORKER_SCRIPT` for writing script into worker
         
         Preconditions:
             - 0 <= script_mode <= 1
@@ -47,30 +47,22 @@ class JSModifier(Modifier):
             ["common", "worker"]
         ]
         script_embeded = ""
-        for script_name in script_names[script_mode]:
+        for script_name in script_names[mode]:
             script_embeded += get_script(script_name)
 
         script_delete_script = ""
-        if script_mode == JSMODIFIER_MAIN_SCRIPT :
+        if mode == JSMODIFIER_MAIN_SCRIPT :
             script_delete_script = f"""
                 if (document.querySelector("#remotecurl") !== null) {{
                     document.head.removeChild(document.querySelector("#remotecurl"));   
                 }}
             """
-        
-        js_allow_url_rules = self._py_regex_list_to_js(self.allow_url_rules)
-        js_deny_url_rules = self._py_regex_list_to_js(self.deny_url_rules)
 
         self.script = f"""
             (function(){{
+                const $server_url "{self.server_url}";
                 const $main_path = "{self.path}";
                 const $worker_path = "{self.worker_path}";
-                const $server_url = "{self.server_url}";
-                const $base_main_url = "{self.server_url}{self.path[1:]}";
-                const $base_worker_url = "{self.server_url}{self.worker_path[1:]}";
-                const $allow_url = {js_allow_url_rules};
-                const $deny_url = {js_deny_url_rules};
-                var $url = "{self.url}";
 
                 {script_embeded}
 
