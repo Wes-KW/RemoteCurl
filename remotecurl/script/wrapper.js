@@ -32,8 +32,12 @@ const check_url = function(url) {
 	return /^https?:\/\/.+/gi.test(url);
 }
 
+const get_original_url = function(url) {
+	return url.substring(base_url.length);
+}
+
 const get_absolute_url = function(rel_url) {
-	return new URL(rel_url, window.location.href).href;
+	return new URL(rel_url, get_original_url(window.location.href)).href;
 }
 
 const get_requested_url = function(rel_url, prefix_url) {
@@ -48,10 +52,6 @@ const get_requested_url = function(rel_url, prefix_url) {
 	}
 }
 
-const get_original_url = function(url) {
-	return url.substring(base_url.length);
-}
-
 // ## location
 const location_init = {};
 const _location = window.location;
@@ -64,14 +64,15 @@ if (_location.href.startsWith(base_url) === false) {
 let keys = ["assign", "replace"];
 for (let key of keys) {
 	let desc = get_obj_prop_desc(_location, key);
+	let _desc_value = desc.value;
 	desc.value = function(url) {
-		return desc.value.call(_location, get_requested_url(url, base_path));
+		return _desc_value.call(_location, get_requested_url(url, base_path));
 	}
 	set_obj_prop_desc(location_init, key, desc);
 }
 let reload_desc = get_obj_prop_desc(_location, "reload");
 reload_desc.value = reload_desc.value.bind(_location);
-set_obj_prop_desc(location_init, "reload", desc);
+set_obj_prop_desc(location_init, "reload", reload_desc);
 
 set_obj_prop_desc(location_init, "toString", {
 	enumerable: true,
@@ -143,18 +144,40 @@ set_obj_prop_desc(location_init, "ancestorOrigins", {
 	},
 });
 
-// ### location.href
 const href_desc = get_obj_prop_desc(_location, "href");
-set_obj_prop_desc(location_init, "href", {
-	enumerable: true,
-	configurable: false,
-	get: function(){
-		return get_original_url(href_desc.get.call(_location));
-	},
-	set: function(value){
-		return href_desc.set.call(_location, get_requested_url(value, base_path));
-	}
-});
+const location_props_overwrite = ["href", "pathname", "protocol", "host", "hostname", "port"]
+const location_props_no_overwrite = ["search", "hash"];
+
+// ### location.[[location_props_overwrite]]
+for (let location_prop of location_props_overwrite) {
+	set_obj_prop_desc(location_init, location_prop, {
+		enumerable: true,
+		configurable: false,
+		get: function() {
+			return new URL(get_original_url(href_desc.get.call(_location)))[location_prop];
+		},
+		set: function(value) {
+			let url_obj = new URL(get_original_url(href_desc.get.call(_location)));
+			url_obj[location_prop] = value;
+			return href_desc.set.call(_location, get_requested_url(url_obj.href, base_path));
+		}
+	});
+}
+
+// ### location.[[location_props_no_overwrite]]
+for (let location_prop of location_props_no_overwrite) {
+	let desc = get_obj_prop_desc(_location, location_prop);
+	set_obj_prop_desc(location_init, location_prop, {
+		enumerable: true,
+		configurable: false,
+		get: function() {
+			return desc.get.call(_location);
+		},
+		set: function(value) {
+			return desc.set.call(_location, value);
+		}
+	});
+}
 
 // ### location.origin
 set_obj_prop_desc(location_init, "origin", {
@@ -165,22 +188,7 @@ set_obj_prop_desc(location_init, "origin", {
 	},
 });
 
-// ### location.protocol
-const protocol_desc = get_obj_prop_desc(_location, "protocol");
-set_obj_prop_desc(location_init, "protocol", {
-	enumerable: true,
-	configurable: false,
-	get: function() {
-		return new URL(get_original_url(href_desc.get.call(_location))).protocol;
-	},
-	set: function(value) {
-		let url_obj = new URL(get_original_url(href_desc.get.call(_location)));
-		url_obj.protocol = value;
-		return href_desc.set.call(_location, get_requested_url(url_obj.href, base_path));
-	}
-});
-
-// ### locaiton.host
+const location = location_init;
 
 
 class __ENV__ {
