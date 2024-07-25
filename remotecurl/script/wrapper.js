@@ -1,7 +1,19 @@
 // # wrapper.js
 
-// ## getting and setting properties
+/*
+	define the following in python script
+	```JavaScript
+		const base_url = '...';
+		const base_path = '...';
+	```
+*/
 
+const base_url = '...';
+const base_path = '...';
+
+// ## common functions
+
+// ### common function for getting and setting properties
 const get_obj_props = function(obj) {
 	return Object.getOwnPropertyNames(obj);
 }
@@ -15,221 +27,166 @@ const set_obj_prop_desc = function(obj, prop, desc) {
 }
 
 
-// ## getting url
-
-const get_absolute_url = function(rel_url) {
-	return new URL(rel_url, this.href).href;
+// ### getting url
+const check_url = function(url) {
+	return /^https?:\/\/.+/gi.test(url);
 }
 
-const get_requested_url = function(rel_url, base_url) {
+const get_absolute_url = function(rel_url) {
+	return new URL(rel_url, window.location.href).href;
+}
+
+const get_requested_url = function(rel_url, prefix_url) {
 	if (typeof rel_url === "undefined") return "";
 	if (rel_url === null) return "";
 	if (rel_url === "#") return "#";
-	let abs_url = this.get_absolute_url(rel_url);
-	if (/^https?:\/\/.+/gi.test(abs_url)) {
-		return base_url + abs_url;
+	let abs_url = get_absolute_url(rel_url);
+	if (check_url(abs_url)) {
+		return prefix_url + abs_url;
 	} else {
 		return rel_url;
 	}
 }
 
-const get_original_url = function(url, base_url) {
+const get_original_url = function(url) {
 	return url.substring(base_url.length);
 }
 
+// ## location
+const location_init = {};
+const _location = window.location;
 
-// ## wrapper classes
-
-class OneInstance {
-	static #instantiate_key = [];
-
-	constructor(){
-		const name = this.constructor.name;
-		if (!OneInstance._(name) || OneInstance.get_instantiate_key(name)){
-			throw new Error("Illegal constructor");
-		}
-
-		OneInstance.set_instantiate_key(name);
-	}
-
-	static _(name){
-		return ["_DOMStringList", "_Location", "Self", "_Window", "_Worker"].includes(name);
-	}
-
-	static get_instantiate_key(name){
-		return this.#instantiate_key.includes(name);
-	}
-
-	static set_instantiate_key(name){
-		this.#instantiate_key.push(name);
-	}
-
-	static toString(){
-		return "function {...}";
-	}
-
-	static toLocaleString(){
-		return OneInstance.toString();
-	}
-
-	get [Symbol.toStringTag]() {
-		return this.constructor.name;
-	}
+if (_location.href.startsWith(base_url) === false) {
+	throw new Error("Illegal constructor");
 }
 
-
-class _DOMStringList extends OneInstance {
-
-	constructor(base_url){
-		super();
-		let ancestor_origins = location.ancestorOrigins;
-		set_obj_prop_desc(this, "length", {
-			enumerable: false,
-			configurable: false,
-			get: function(){
-				return ancestor_origins.length;
-			}
-		});
-		set_obj_prop_desc(this, "contains", {
-			writable: false,
-			enumerable: false,
-			configurable: false,
-			value: function(url) {
-				for (let i=0; i<this.length; i++) {
-					if (this.item(i) === url) {
-						return true;
-					}
-				}
-				return false;
-			}
-		});
-		set_obj_prop_desc(this, "item", {
-			writable: false,
-			enumerable: false,
-			configurable: false,
-			value: function(index) {
-				if (/^\d+\.?\d*$/gi.test(index) && index >= 0 && index < this.length){
-					return get_original_url(ancestor_origins.item(index), base_url);
-				}
-				return null;
-			}
-		});
-		return new Proxy(this, {
-			get: function(target, property) {
-				if (["length", "contains", "item"].includes(property)) {
-					return target[property];
-				} else {
-					let prop = String(property);
-					let res = target.item(parseInt(prop));
-					if (res === null) {
-						return undefined;
-					} else {
-						return res;
-					}
-				}
-			}
-		});
+// ### location.[[function]]
+let keys = ["assign", "replace"];
+for (let key of keys) {
+	let desc = get_obj_prop_desc(_location, key);
+	desc.value = function(url) {
+		return desc.value.call(_location, get_requested_url(url, base_path));
 	}
+	set_obj_prop_desc(location_init, key, desc);
 }
+let reload_desc = get_obj_prop_desc(_location, "reload");
+reload_desc.value = reload_desc.value.bind(_location);
+set_obj_prop_desc(location_init, "reload", desc);
 
+set_obj_prop_desc(location_init, "toString", {
+	enumerable: true,
+	configurable: false,
+	get: function(){
+		return this.href;
+	}
+});
 
-class _Location extends OneInstance {
+// ### location.ancestorOrigins
+const ancestor_origins_init = {};
+const _ancestor_origins = _location.ancestorOrigins;
 
-	#location;
-	#base_url;
+set_obj_prop_desc(ancestor_origins_init, "length", {
+	enumerable: false,
+	configurable: false,
+	get: function(){
+		return _ancestor_origins.length;
+	}
+});
 
-	constructor(base_url){
-		super();
-
-		if (!location.href || !location.href.startsWith || !location.href.startsWith(base_url)){
-			throw new Error("Illegal constructor");
+set_obj_prop_desc(ancestor_origins_init, "item", {
+	writable: false,
+	enumerable: false,
+	configurable: false,
+	value: function(index) {
+		if (/^\d+\.?\d*$/gi.test(index) && index >= 0 && index < this.length){
+			return get_original_url(_ancestor_origins.item(index));
 		}
-
-		this.#location = location;
-		this.#base_url = base_url;
-		this.initialize();
+		return null;
 	}
+});
 
-	initialize() {
-		this.initialize_redirection_func();
-		this.initialize_to_string_func();
-		this.initialize_redirection_prop();
-	}
-
-	initialize_redirection_func() {
-		let location = this.#location;
-		let keys = ["assign", "replace"];
-		for (let key of keys) {
-			let desc = get_obj_prop_desc(location, key);
-			desc.value = function(url) {
-				return desc.value.call(location, this.get_requested_url(url));
+set_obj_prop_desc(ancestor_origins_init, "contains", {
+	writable: false,
+	enumerable: false,
+	configurable: false,
+	value: function(url) {
+		for (let i=0; i<this.length; i++) {
+			if (this.item(i) === url) {
+				return true;
 			}
-			set_obj_prop_desc(this, key, desc);
 		}
-		let desc = get_obj_prop_desc(location, "reload");
-		desc.value = desc.value.bind(location);
+		return false;
 	}
+});
 
-	initialize_to_string_func() {
-		set_obj_prop_desc(this, "toString", {
-			enumerable: true,
-			configurable: false,
-			get: function(){
-				return this.href;
+const ancestor_origins = new Proxy(ancestor_origins_init, {
+	get: function(target, property) {
+		if (["length", "contains", "item"].includes(property)) {
+			return target[property];
+		} else {
+			let prop = String(property);
+			let res = target.item(parseInt(prop));
+			if (res === null) {
+				return undefined;
+			} else {
+				return res;
 			}
-		});
+		}
 	}
+});
 
-	initialize_redirection_prop() {
-		// ancestor_origins
-		let location = this.#location;
-		let base_url = this.#base_url;
-		let ancestor_origins = new _DOMStringList(location.ancestorOrigins, base_url);
-		set_obj_prop_desc(this, "ancestorOrigins", {
-			enumerable: true,
-			configurable: false,
-			get: function(){
-				return ancestor_origins;
-			},
-		});
+set_obj_prop_desc(location_init, "ancestorOrigins", {
+	enumerable: true,
+	configurable: false,
+	get: function(){
+		return ancestor_origins;
+	},
+});
 
-		// href
-		let href_desc = get_obj_prop_desc(location, "href");
-		set_obj_prop_desc(this, "href", {
-			enumerable: true,
-			configurable: false,
-			get: function(){
-				return get_original_url(href_desc.get.call(location), base_url);
-			},
-			set: function(value){
-				return href_desc.set.call(location, get_requested_url(value, base_url));
-			}
-		});
-
-		// origin
-		let origin_desc = get_obj_prop_desc(location, "origin");
-		set_obj_prop_desc(this, "origin", {
-			enumerable: true,
-			configurable: false,
-			get: function() {
-				return new URL(this.get_original_url(origin_desc.get.call(location))).origin;
-			},
-			set: function(value) {
-				
-				return href_desc.set.call(location, )
-			}
-		})
-
-
+// ### location.href
+const href_desc = get_obj_prop_desc(_location, "href");
+set_obj_prop_desc(location_init, "href", {
+	enumerable: true,
+	configurable: false,
+	get: function(){
+		return get_original_url(href_desc.get.call(_location));
+	},
+	set: function(value){
+		return href_desc.set.call(_location, get_requested_url(value, base_path));
 	}
-}
+});
+
+// ### location.origin
+set_obj_prop_desc(location_init, "origin", {
+	enumerable: true,
+	configurable: false,
+	get: function() {
+		return new URL(get_original_url(href_desc.get.call(_location))).origin;
+	},
+});
+
+// ### location.protocol
+const protocol_desc = get_obj_prop_desc(_location, "protocol");
+set_obj_prop_desc(location_init, "protocol", {
+	enumerable: true,
+	configurable: false,
+	get: function() {
+		return new URL(get_original_url(href_desc.get.call(_location))).protocol;
+	},
+	set: function(value) {
+		let url_obj = new URL(get_original_url(href_desc.get.call(_location)));
+		url_obj.protocol = value;
+		return href_desc.set.call(_location, get_requested_url(url_obj.href, base_path));
+	}
+});
+
+// ### locaiton.host
 
 
-class Self extends OneInstance {
+class __ENV__ {
 
 	constructor(ref_obj, overwrite){
-		super();
-		
+
 		// create pointers to the ref_obj
 		let keys = get_obj_props(ref_obj);
 		for (let key of keys) {
