@@ -188,8 +188,6 @@ set_obj_prop_desc(location_init, "origin", {
 	},
 });
 
-const location = location_init;
-
 
 class __ENV__ {
 
