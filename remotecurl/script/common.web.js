@@ -34,9 +34,6 @@ const create_proxied_object = function(ref_obj, overwrite) {
 			}
 			if (desc.writable === true) {
 				desc.set = function(value) {
-					if (typeof value === "function") {
-						value = value.bind(obj);
-					}
 					return ref_obj[key] = value;
 				}
 			}
