@@ -34,6 +34,9 @@ const create_proxied_object = function(ref_obj, overwrite) {
 			}
 			if (desc.writable === true) {
 				desc.set = function(value) {
+					if (typeof value === "function") {
+						value = value.bind(obj);
+					}
 					return ref_obj[key] = value;
 				}
 			}
@@ -51,7 +54,7 @@ const create_proxied_object = function(ref_obj, overwrite) {
 		value: function(func) {
 			/*
 				call ```
-					new Self().__execute__(function(ref_obj)){
+					obj.__execute__(function(ref_obj)){
 						// To expose properties in ref_obj, write
 						//	`const example_property = ref_obj.example_property`
 
