@@ -58,5 +58,5 @@ const inherit_from_class = function(subclass, superclass){
 
 // # slice arguments
 const slice_args = function(args){
-	return Array.prototype.slice.call(args, 0, args.length);
+	return Array.prototype.slice.apply(args, [0, args.length]);
 }
