@@ -51,7 +51,7 @@ const create_proxied_object = function(ref_obj, overwrite) {
 		value: function(func) {
 			/*
 				call ```
-					new Self().execute(function(ref_obj)){
+					new Self().__execute__(function(ref_obj)){
 						// To expose properties in ref_obj, write
 						//	`const example_property = ref_obj.example_property`
 
