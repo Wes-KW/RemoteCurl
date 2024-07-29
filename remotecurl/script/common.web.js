@@ -83,7 +83,7 @@ const create_proxied_object = function(ref_obj, overwrite) {
 }
 
 const create_proxied_web_object = function(ref_obj, extra_overwrite) {
-	let overwrite = ["location", "XMLHttpRequest", "Request", "fetch"];
+	let overwrite = ["location", "XMLHttpRequest", "Request", "fetch", "Worker"];
 	overwrite = overwrite.concat(extra_overwrite);
 	const obj = create_proxied_object(ref_obj, overwrite);
 
