@@ -2,6 +2,7 @@
 
 const create_proxied_object = function(ref_obj, overwrite) {
 	const obj = {};
+	const func_reg = {};
 
 	// create pointers to reference object
 	let keys = get_obj_props(ref_obj);
@@ -13,32 +14,43 @@ const create_proxied_object = function(ref_obj, overwrite) {
 		if (desc.get){
 			let _desc_get = desc.get;
 			desc.get = function(){
-				return _desc_get.apply(ref_obj);
+				let res = _desc_get.apply(ref_obj);
+				if (typeof res === "function" && key in func_reg){
+					return func_reg[key];
+				} else {
+					return res;
+				}
 			}
 		}
 		if (desc.set){
 			let _desc_set = desc.set;
 			desc.set = function(value){
+				if (typeof value === "function"){
+					func_reg[key] = value;
+					value = obj.__execute__.bind(obj, value);
+				}
 				return _desc_set.apply(ref_obj, [value]);
 			}
 		}
 
-		if (typeof desc.value === "function"){
-			if ("prototype" in desc.value === false) {
-				let _desc_value = desc.value
-				desc.value = _desc_value.bind(ref_obj);
-			}
-		} else {
-			desc.get = function(){
-				return ref_obj[key];
-			}
-			if (desc.writable === true) {
-				desc.set = function(value) {
-					return ref_obj[key] = value;
+		if ("value" in desc) {
+			if (typeof desc.value === "function"){
+				if ("prototype" in desc.value === false) {
+					let _desc_value = desc.value
+					desc.value = _desc_value.bind(ref_obj);
 				}
+			} else {
+				desc.get = function(){
+					return ref_obj[key];
+				}
+				if (desc.writable === true) {
+					desc.set = function(value) {
+						return ref_obj[key] = value;
+					}
+				}
+				delete desc.writable;
+				delete desc.value;
 			}
-			delete desc.writable;
-			delete desc.value;
 		}
 
 		set_obj_prop_desc(obj, key, desc);
@@ -275,6 +287,106 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
 			}
 		});
 	}
+
+	// # Worker
+	let Worker = ref_obj.Worker;
+	if (Worker) {
+		let _Worker = function(){
+			let args = slice_args(arguments);
+			args[0] = get_requested_url(args[0], web_default_path, ref_obj);
+			return Worker.apply(this, args);
+		}
+
+		inherit_from_class(_Worker, Worker);
+
+		set_obj_prop_desc(obj, "Worker", {
+			writable: true,
+			enumerable: false,
+			configurable: true,
+			value: _Worker
+		});
+	}
+
+	// # EventTarget.[[property]]
+	const func_mappings = [];
+
+	let FuncMapping = function(func, proxied_func) {
+		this.func = func;
+		this.proxied_func = proxied_func;
+	}
+
+	const add_func_mapping = function(func, proxied_func){
+		func_mappings.push(new FuncMapping(func, proxied_func));
+	}
+
+	const get_func_mapping = function(func){
+		let temp_func_mappings = [];
+
+		const push_back = function() {
+			while (temp_func_mappings.length > 0) {
+				func_mappings.push(temp_func_mappings.pop());
+			}
+		}
+
+		while (func_mappings.length > 0) {
+			let func_mapping = func_mappings.pop();
+			if (func_mapping.func === func) {
+				push_back(temp_func_mappings);
+				return func_mapping.proxied_func;
+			} else if (func_mapping.proxied_func === func) {
+				push_back(temp_func_mappings);
+				return func_mapping.func;
+			} else {
+				temp_func_mappings.push(func_mapping);
+			}
+		}
+		push_back(temp_func_mappings);
+		return null;
+	}
+
+	// ## addEventListener
+	let _addEventListener = function(){
+		let args = slice_args(arguments);
+		let new_func = obj.__execute__.bind(obj, args[1]);
+		add_func_mapping(args[1], new_func);
+		args[1] = new_func;
+		ref_obj.addEventListener.apply(ref_obj, args);
+	}
+
+	Object.defineProperty(obj, "addEventListener", {
+		writable: true,
+		enumerable: true,
+		configurable: true,
+		value: _addEventListener
+	});
+
+	// ## removeEventListener
+	let _removeEventListener = function(){
+		let args = slice_args(arguments);
+		let proxied_func = get_func_mapping(args[1]);
+		args[1] = proxied_func;
+		ref_obj.removeEventListener.apply(ref_obj, args);
+	}
+
+	Object.defineProperty(obj, "removeEventListener", {
+		writable: true,
+		enumerable: true,
+		configurable: true,
+		value: _removeEventListener
+	});
+
+	// ## dispatchEvent
+	let _dispatchEvent = function(){
+		let args = slice_args(arguments);
+		ref_obj.dispatchEvent.apply(ref_obj, args);
+	}
+
+	Object.defineProperty(obj, "dispatchEvent", {
+		writable: true,
+		enumerable: true,
+		configurable: true,
+		value: _dispatchEvent
+	});
 
 	return obj;
 }
