@@ -102,11 +102,10 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
     set_obj_prop_desc(location_init, "reload", reload_desc);
 
     set_obj_prop_desc(location_init, "toString", {
+        writable: false,
         enumerable: true,
         configurable: false,
-        get: function(){
-            return this.href;
-        }
+        value: this.href
     });
 
     // ## location.ancestorOrigins
