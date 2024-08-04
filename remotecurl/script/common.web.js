@@ -402,7 +402,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
         });
     }
 
-    // ## extra
+    // ## execute script in the current environment
     set_obj_prop_desc(obj, "__execute__", {
         writable: false,
         enumerable: false,
