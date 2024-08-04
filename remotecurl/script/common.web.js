@@ -1,13 +1,12 @@
 // common.web.js
 
-const create_proxied_object = function(ref_obj, overwrite) {
-    const obj = {};
+const shallow_copy = function(top, ref_obj, overwrite, obj) {
     const func_reg = {};
 
     // create pointers to reference object
-    let keys = get_obj_props(ref_obj);
+    let keys = get_obj_props(ref_obj, overwrite);
     for (let key of keys) {
-        if (overwrite.includes(key)) {
+        if (overwrite.includes(key) || key in obj) {
             continue;
         }
         let desc = get_obj_prop_desc(ref_obj, key);
@@ -17,7 +16,7 @@ const create_proxied_object = function(ref_obj, overwrite) {
                 if (key in func_reg && typeof func_reg[key] === "function"){
                     return func_reg[key];
                 } else {
-                    return _desc_get.apply(ref_obj);
+                    return _desc_get.apply(top);
                 }
             }
         }
@@ -28,7 +27,7 @@ const create_proxied_object = function(ref_obj, overwrite) {
                     func_reg[key] = value;
                     value = this.__execute__.bind(this, value);
                 }
-                return _desc_set.apply(ref_obj, [value]);
+                return _desc_set.apply(top, [value]);
             }
         }
 
@@ -36,15 +35,15 @@ const create_proxied_object = function(ref_obj, overwrite) {
             if (typeof desc.value === "function"){
                 if ("prototype" in desc.value === false) {
                     let _desc_value = desc.value
-                    desc.value = _desc_value.bind(ref_obj);
+                    desc.value = _desc_value.bind(top);
                 }
             } else {
                 desc.get = function(){
-                    return ref_obj[key];
+                    return top[key];
                 }
                 if (desc.writable === true) {
                     desc.set = function(value) {
-                        return ref_obj[key] = value;
+                        return top[key] = value;
                     }
                 }
                 delete desc.writable;
@@ -54,35 +53,28 @@ const create_proxied_object = function(ref_obj, overwrite) {
 
         set_obj_prop_desc(obj, key, desc);
     }
+}
 
-    set_obj_prop_desc(obj, "__execute__", {
-        writable: false,
-        enumerable: false,
-        configurable: false,
-        value: function(func) {
-            /*
-                call ```
-                    obj.__execute__(function(ref_obj)){
-                        // To expose properties in ref_obj, write
-                        //    `const example_property = ref_obj.example_property`
+const deep_copy = function(top, ref_constructor, overwrite, obj) {
+    if (ref_constructor.__proto__ !== Object.__proto__) {
+        deep_copy(top, ref_constructor.__proto__, overwrite, obj);
+    }
 
-                        // Then run other script in the current window environment
-                        ...
-                    }
-                ```
-            */
-            if (typeof func !== "function"){
-                throw new TypeError(`${typeof func} is not callable`);
-            }
-        
-            func.apply(this, [this]);
-        }
-    });
+    shallow_copy(top, ref_constructor.prototype, overwrite, obj);
+}
+
+const create_proxied_object = function(ref_obj, overwrite) {
+    const obj = {};
+    shallow_copy(ref_obj, ref_obj, overwrite, obj);
+    deep_copy(ref_obj, ref_obj.constructor, overwrite, obj);
     return obj;
 }
 
 const create_proxied_web_object = function(ref_obj, extra_overwrite) {
-    let overwrite = ["location" , "origin", "XMLHttpRequest", "Request", "fetch", "Worker"];
+    let overwrite = [
+        "location" , "origin", "XMLHttpRequest", "Request", "fetch", "Worker",
+        "addEventListner", "removeEventListener", "dispatchEvent"
+    ];
     overwrite = overwrite.concat(extra_overwrite);
     const obj = create_proxied_object(ref_obj, overwrite);
     const func_reg = {};
@@ -155,21 +147,14 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
         }
     });
 
-    const ancestor_origins = new Proxy(ancestor_origins_init, {
-        get: function(target, property) {
-            if (["length", "contains", "item"].includes(property)) {
-                return target[property];
-            } else {
-                let prop = String(property);
-                let res = target.item(parseInt(prop));
-                if (res === null) {
-                    return undefined;
-                } else {
-                    return res;
-                }
-            }
-        }
-    });
+    for (let i = 0;i < _ancestor_origins.length; i++) {
+        set_obj_prop_desc(ancestor_origins_init, i, {
+            writable: false,
+            enumerable: true,
+            configurable: true,
+            value: _ancestor_origins.item(i)
+        });
+    }
 
     set_obj_prop_desc(location_init, "ancestorOrigins", {
         enumerable: true,
@@ -418,15 +403,30 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
         });
     }
 
-    // # Window.prototype.[[static properties]]
-    for (let prop of ["PERSISTENT", "TEMPORARY"]) {
-        Object.defineProperties(obj, prop, {
-            enumerable: true,
-            writable: false,
-            configurable: false,
-            value: ref_obj[prop]
-        });
-    }
+    // ## extra
+    set_obj_prop_desc(obj, "__execute__", {
+        writable: false,
+        enumerable: false,
+        configurable: false,
+        value: function(func) {
+            /*
+                call ```
+                    obj.__execute__(function(ref_obj)){
+                        // To expose properties in ref_obj, write
+                        //    `const example_property = ref_obj.example_property`
+
+                        // Then run other script in the current window environment
+                        ...
+                    }
+                ```
+            */
+            if (typeof func !== "function"){
+                throw new TypeError(`${typeof func} is not callable`);
+            }
+        
+            func.apply(this, [this]);
+        }
+    });
 
     return obj;
 }
