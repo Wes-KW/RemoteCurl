@@ -159,7 +159,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
         enumerable: true,
         configurable: false,
         get: function(){
-            return ancestor_origins;
+            return ancestor_origins_init;
         },
     });
 
