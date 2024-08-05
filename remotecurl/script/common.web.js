@@ -412,7 +412,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
                 call ```
                     obj.__execute__(function(ref_obj)){
                         // To expose properties in ref_obj, write
-                        //    `const example_property = ref_obj.example_property`
+                        //    `const example_property = ref_obj.example_property;`
 
                         // Then run other script in the current window environment
                         ...
