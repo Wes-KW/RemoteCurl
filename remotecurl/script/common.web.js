@@ -56,24 +56,50 @@ const shallow_copy = function(top, ref_obj, overwrite, obj) {
 }
 
 const deep_copy = function(top, ref_constructor, overwrite, obj) {
-    if (ref_constructor.__proto__ !== Object.__proto__) {
-        deep_copy(top, ref_constructor.__proto__, overwrite, obj);
+    if (get_proto(ref_constructor) !== get_proto(Object)) {
+        deep_copy(top, get_proto(ref_constructor), overwrite, obj);
     }
 
     shallow_copy(top, ref_constructor.prototype, overwrite, obj);
 }
 
-const create_proxied_object = function(ref_obj, overwrite) {
-    const obj = {};
-    shallow_copy(ref_obj, ref_obj, overwrite, obj);
-    deep_copy(ref_obj, ref_obj.constructor, overwrite, obj);
-    return obj;
+const create_env_eval = function(obj) {
+    // ## execute script in the current environment
+    set_obj_prop_desc(obj, "__execute__", {
+        writable: false,
+        enumerable: false,
+        configurable: false,
+        value: function(func) {
+            /*
+                call ```
+                    obj.__execute__(function(ref_obj)){
+                        // To expose properties in ref_obj, write
+                        //    `const example_property = ref_obj.example_property;`
+
+                        // Then run other script in the current window environment
+                        ...
+                    }
+                ```
+            */
+            if (typeof func !== "function"){
+                throw new TypeError(`${typeof func} is not callable`);
+            }
+        
+            func.apply(this, [this]);
+        }
+    });
 }
 
-const create_proxied_event_obj = function(ref_obj, extra_overwrite) {
+const create_proxied_object = function(ref_obj, overwrite, obj) {
+    shallow_copy(ref_obj, ref_obj, overwrite, obj);
+    deep_copy(ref_obj, ref_obj.constructor, overwrite, obj);
+    create_env_eval(obj);
+}
+
+const create_proxied_event_obj = function(ref_obj, extra_overwrite, obj) {
     let overwrite = ["addEventListner", "removeEventListener", "dispatchEvent"];
     overwrite = overwrite.concat(extra_overwrite);
-    const obj = create_proxied_object(ref_obj, overwrite);
+    create_proxied_object(ref_obj, overwrite, obj);
 
     // # EventTarget.[[property]]
     const func_mappings = [];
@@ -158,19 +184,17 @@ const create_proxied_event_obj = function(ref_obj, extra_overwrite) {
             }
         });
     }
-
-    return obj;
 }
 
-const create_proxied_web_object = function(ref_obj, extra_overwrite) {
+const create_proxied_web_object = function(ref_web_obj, extra_overwrite, obj) {
     let overwrite = ["location" , "origin", "XMLHttpRequest", "Request", "fetch", "Worker"];
     overwrite = overwrite.concat(extra_overwrite);
-    const obj = create_proxied_event_obj(ref_obj, overwrite);
+    create_proxied_event_obj(ref_web_obj, overwrite, obj);
     const func_reg = {};
 
     // # location
     const location_init = {};
-    const _location = ref_obj.location;
+    const _location = ref_web_obj.location;
 
     if (_location.href.startsWith(base_url) === false) {
         throw new Error("Illegal constructor");
@@ -182,7 +206,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
         let desc = get_obj_prop_desc(_location, key);
         let _desc_value = desc.value;
         desc.value = function(url) {
-            return _desc_value.apply(_location, [get_requested_url(url, web_default_path, ref_obj)]);
+            return _desc_value.apply(_location, [get_requested_url(url, web_default_path, ref_web_obj)]);
         }
         set_obj_prop_desc(location_init, key, desc);
     }
@@ -269,7 +293,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
             set: function(value) {
                 let url_obj = new URL(get_original_url(href_desc.get.apply(_location)));
                 url_obj[location_prop] = value;
-                return href_desc.set.apply(_location, [get_requested_url(url_obj.href, web_default_path, ref_obj)]);
+                return href_desc.set.apply(_location, [get_requested_url(url_obj.href, web_default_path, ref_web_obj)]);
             }
         });
     }
@@ -310,19 +334,26 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
     });
 
     // # origin
-    if (ref_obj.origin){
-        proxy_prop(ref_obj, obj, "origin", _location.origin, location_init.origin, func_reg);
+    if (ref_web_obj.origin){
+        proxy_prop(ref_web_obj, obj, "origin", _location.origin, location_init.origin, func_reg);
     }
 
     // # XMLHttpRequest
-    let XMLHttpRequest = ref_obj.XMLHttpRequest;
+    let XMLHttpRequest = ref_web_obj.XMLHttpRequest;
     if (XMLHttpRequest) {
-        let _XMLHttpRequest = function(){}
-        inherit_from_class(_XMLHttpRequest, XMLHttpRequest);
-        _XMLHttpRequest.prototype.open = function(){
-            let args = slice_args(arguments);
-            args[1] = get_requested_url(args[1], web_default_path, ref_obj);
-            return XMLHttpRequest.prototype.open.apply(this, args);
+        let _XMLHttpRequest = function() {
+            this.__ref_obj__ = new XMLHttpRequest();
+            create_proxied_event_obj(this.__ref_obj__, ["open"], this);
+            set_obj_prop_desc(this, "open", {
+                writable: true,
+                enumerable: true,
+                configurable: true,
+                value: function(){
+                    let args = slice_args(arguments);
+                    args[1] = get_requested_url(args[1], web_default_path, ref_web_obj);
+                    return this.__ref_obj__.open.apply(this.__ref_obj__, args);
+                }
+            });
         }
 
         set_obj_prop_desc(obj, "XMLHttpRequest", {
@@ -334,14 +365,13 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
     }
 
     // # Request
-    let Request = ref_obj.Request;
+    let Request = ref_web_obj.Request;
     if (Request) {
         let _Request = function(){
             let args = slice_args(arguments);
-            args[0] = get_requested_url(args[0], web_default_path, ref_obj);
+            args[0] = get_requested_url(args[0], web_default_path, ref_web_obj);
             return Request.apply(this, args);
         }
-        inherit_from_class(_Request, Request);
 
         set_obj_prop_desc(obj, "Request", {
             writable: true,
@@ -352,7 +382,7 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
     }
 
     // # fetch
-    let fetch = ref_obj.fetch;
+    let fetch = ref_web_obj.fetch;
     if (fetch) {
         set_obj_prop_desc(obj, "fetch", {
             writable: true,
@@ -361,23 +391,21 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
             value: function(){
                 let args = slice_args(arguments);
                 if (typeof args[0] === "string"){
-                    args[0] = get_requested_url(args[0], web_default_path, ref_obj);
+                    args[0] = get_requested_url(args[0], web_default_path, ref_web_obj);
                 }
-                return fetch.apply(ref_obj, args)
+                return fetch.apply(ref_web_obj, args)
             }
         });
     }
 
     // # Worker
-    let Worker = ref_obj.Worker;
+    let Worker = ref_web_obj.Worker;
     if (Worker) {
         let _Worker = function(){
             let args = slice_args(arguments);
-            args[0] = get_requested_url(args[0], web_default_path, ref_obj);
+            args[0] = get_requested_url(args[0], web_default_path, ref_web_obj);
             return Worker.apply(this, args);
         }
-
-        inherit_from_class(_Worker, Worker);
 
         set_obj_prop_desc(obj, "Worker", {
             writable: true,
@@ -386,31 +414,4 @@ const create_proxied_web_object = function(ref_obj, extra_overwrite) {
             value: _Worker
         });
     }
-
-    // ## execute script in the current environment
-    set_obj_prop_desc(obj, "__execute__", {
-        writable: false,
-        enumerable: false,
-        configurable: false,
-        value: function(func) {
-            /*
-                call ```
-                    obj.__execute__(function(ref_obj)){
-                        // To expose properties in ref_obj, write
-                        //    `const example_property = ref_obj.example_property;`
-
-                        // Then run other script in the current window environment
-                        ...
-                    }
-                ```
-            */
-            if (typeof func !== "function"){
-                throw new TypeError(`${typeof func} is not callable`);
-            }
-        
-            func.apply(this, [this]);
-        }
-    });
-
-    return obj;
 }

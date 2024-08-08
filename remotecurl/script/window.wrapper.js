@@ -1,9 +1,13 @@
 // window.wrapper.js
 
 const get_proxied_window = function(_window) {
-    if ("__env__" in _window) {
-        return _window["__env__"];
-    } else {
+    try{
+        if ("__env__" in _window) {
+            return _window["__env__"];
+        } else {
+            return _window;
+        }
+    } catch {
         return _window;
     }
 }

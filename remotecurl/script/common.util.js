@@ -5,6 +5,10 @@ const web_default_path = "...";
 const web_worker_path = "...";
 
 // Object.[[property_getter_and_setter]]
+const get_proto = function(obj) {
+    return obj.__proto__ || Object.getPrototypeOf(obj);
+}
+
 const get_obj_props = function(obj) {
     return Object.getOwnPropertyNames(obj);
 }
@@ -26,26 +30,20 @@ const get_original_url = function(url) {
     return url.substring(base_url.length);
 }
 
-const get_absolute_url = function(rel_url, ref_obj) {
-    return new URL(rel_url, get_original_url(ref_obj.location.href)).href;
+const get_absolute_url = function(rel_url, ref_window) {
+    return new URL(rel_url, get_original_url(ref_window.location.href)).href;
 }
 
-const get_requested_url = function(rel_url, prefix_url, ref_obj) {
+const get_requested_url = function(rel_url, prefix_url, ref_web_obj) {
     if (typeof rel_url === "undefined") return "";
     if (rel_url === null) return "";
     if (rel_url === "#") return "#";
-    let abs_url = get_absolute_url(rel_url, ref_obj);
+    let abs_url = get_absolute_url(rel_url, ref_web_obj);
     if (check_url(abs_url)) {
         return prefix_url + abs_url;
     } else {
         return rel_url;
     }
-}
-
-// # inherit class
-const inherit_from_class = function(subclass, superclass){
-    subclass.prototype = Object.create(superclass.prototype);
-    subclass.prototype.constructor = subclass;
 }
 
 // # slice arguments
